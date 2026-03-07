@@ -1,6 +1,6 @@
 import { DefaultDataSwap, hasValue, typeOf } from '@aalencarv/common-utils';
-import { getData, getOrCreate, patchData, putData } from "@aalencarv/sysnormal-js-request-utils";
 import { authOnSso } from './helpers/auth/AuthenticationHelper.js';
+import { getData, getOrCreate, patchData, putData } from '@sysnormal/js-request-utils';
 //reexports to public
 export { authOnSso, refreshToken, checkTokenIsExpired } from './helpers/auth/AuthenticationHelper.js';
 var SSO_URL;
