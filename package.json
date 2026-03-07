@@ -1,0 +1,33 @@
+{
+  "name": "@sysnormal/sso-js-integrations",
+  "package": "@sysnormal/sso-js-integrations",
+  "version": "1.0.0",
+  "author": "aalencarvz@gmail.com",
+  "license": "ISC",
+  "type": "module",
+  "description": "a common sysnormal sso integrations functions to use in javascript and node",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "test": "cross-env NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" npx jest --verbose",
+    "build": "tsc"
+  },
+  "keywords": [
+    "sysnormal",
+    "javascript",
+    "js",
+    "sso",
+    "integration"
+  ],
+  "devDependencies": {
+    "cross-env": "^10.1.0",
+    "typescript": "^5.8.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@aalencarv/common-utils": "^1.11.0",
+    "@sysnormal/js-request-utils": "^1.0.1"
+  }
+}
