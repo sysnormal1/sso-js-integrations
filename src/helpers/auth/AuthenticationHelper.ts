@@ -10,8 +10,10 @@ export type SsoAuthParams = {
 }
 
 export async function authOnSso(params: SsoAuthParams): Promise<DefaultDataSwap> {
-    return new Promise((resolve, reject)=>{        
-        fetch(params.url||'',{
+    let result = new DefaultDataSwap();
+    try {
+        
+        let response = await fetch(params.url||'',{
             method: "POST",
             headers: {
                 Accept: "application/json",
@@ -22,34 +24,14 @@ export async function authOnSso(params: SsoAuthParams): Promise<DefaultDataSwap>
                 identifier: params.identifier,
                 password : params.password
             })
-        }).then(resultRequest=>{   
-            resultRequest.json().then(resultJson=>{
-                if (resultRequest.status == 200) {  // eslint-disable-line eqeqeq
-                    if (resultJson?.success && resultJson?.data.token ) {                                                    
-                        resolve(resultJson);
-                    } else {
-                        reject(resultJson);
-                    }
-                } else {
-                    reject(resultJson);
-                }
-            }).catch(errorJson=>{
-                const result: DefaultDataSwap = new DefaultDataSwap({
-                    success: false, 
-                    message: errorJson.message,
-                    exception: errorJson
-                })
-                reject(result);
-            });
-        }).catch(errorRequest=>{   
-            const result: DefaultDataSwap = new DefaultDataSwap({
-                success: false, 
-                message: errorRequest.message,
-                exception: errorRequest
-            })
-            reject(result);
         });
-    })
+        
+        result = await response.json();
+                    
+    } catch (e) {
+        result.setException(e);
+    }
+    return result;
 }
 
 export async function refreshToken(params: {

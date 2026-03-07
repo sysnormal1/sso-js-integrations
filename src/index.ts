@@ -43,12 +43,13 @@ async function upsertResourcesAndPermissions(params: {
     system: any, 
     accessProfile: any,
     agent: any,
+    defaultResourceTypeId?: number;
     resources?: any, 
     parentResource?: any
 }): Promise<DefaultDataSwap> {
     let result: DefaultDataSwap = new DefaultDataSwap();
     try {
-		params.endpoint = params.endpoint || `/${RECORDS_ENDPOINT}/resources`;
+		params.endpoint = params.endpoint || `${RECORDS_ENDPOINT}/resources`;
 		params.getEndpoint = params.getEndpoint || `${params.endpoint}${params.endpoint?.lastIndexOf('/get') === (params.endpoint||'').length - 4 ? '' : '/get'}`;
 		params.patchEndpoint = params.patchEndpoint || params.endpoint;
 		params.putEndpoint = params.putEndpoint || params.endpoint;
@@ -63,7 +64,7 @@ async function upsertResourcesAndPermissions(params: {
             let resource = {
                 ...params.resources, 
                 systemId: params.system.id, 
-                resourceTypeId: params.resources.resourceTypeId,// || 10, //ResourceType.URL_ID
+                resourceTypeId: params.resources.resourceTypeId || params.defaultResourceTypeId,// || 10, //ResourceType.URL_ID
                 parentId: null
             };
             resource.children = undefined;
@@ -174,12 +175,11 @@ export async function ssoRegister(params: {
 		systemSideId: number;
 		name: string;
 	};
+    defaultResourceTypeId?: number;
 	resources?: any
 }): Promise<void> {    
     //logi('ssoRegister');
-    try {
-        //login or register with system (system agent)
-
+    try {        
 		params.ssoLoginEndpoint = params.ssoLoginEndpoint || "/auth/login";
 		params.ssoRegisterEndpoint = params.ssoRegisterEndpoint || "/auth/register";
 		params.ssoRefreshTokenEndpoint = params.ssoRefreshTokenEndpoint || "/auth/refresh_token";
@@ -187,12 +187,15 @@ export async function ssoRegister(params: {
 		REFRESH_TOKEN_ENDPOINT = params.ssoRefreshTokenEndpoint;
 		RECORDS_ENDPOINT = params.ssoRecordsEndpoint;
 
+        //login or register with system (system agent)
+        console.log("antes1");
         let agentResponseJson: DefaultDataSwap = await authOnSso({
 			url: `${params.ssoUrl}${params.ssoLoginEndpoint}`,
 			identifierTypeId: params.ssoAgent.identifierTypeId,
 			identifier: params.ssoAgent.identifier,
 			password: params.ssoAgent.password
-		});    
+		}); 
+        console.log("xxxx",agentResponseJson);   
         if (!agentResponseJson.success && (agentResponseJson.message || '').indexOf("not found") > -1) {
             agentResponseJson = await authOnSso({
 				url: `${params.ssoUrl}${params.ssoRegisterEndpoint}`,
@@ -256,6 +259,7 @@ export async function ssoRegister(params: {
                             system,
                             accessProfile,
                             agent,
+                            defaultResourceTypeId: params.defaultResourceTypeId,
                             resources: params.resources
 						});
                         if (!resourcesResult.success) {

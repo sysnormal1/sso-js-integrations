@@ -21,5 +21,6 @@ export declare function ssoRegister(params: {
         systemSideId: number;
         name: string;
     };
+    defaultResourceTypeId?: number;
     resources?: any;
 }): Promise<void>;
