@@ -23,4 +23,5 @@ export declare function ssoRegister(params: {
     };
     defaultResourceTypeId?: number;
     resources?: any;
+    systemPermissionsIsOnlySystemAgent?: boolean;
 }): Promise<void>;

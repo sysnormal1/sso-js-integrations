@@ -105,7 +105,7 @@ async function upsertResourcesAndPermissions(params) {
                         data: {
                             resourceId: resource.id,
                             accessProfileId: params.accessProfile.id,
-                            agentId: params.agent.id,
+                            agentId: params.systemPermissionsIsOnlySystemAgent ? params.agent.id : null,
                             allowedAccess: 1,
                             allowedView: 1,
                             allowedCreate: 1,
@@ -201,7 +201,8 @@ export async function ssoRegister(params) {
                             accessProfile,
                             agent,
                             defaultResourceTypeId: params.defaultResourceTypeId,
-                            resources: params.resources
+                            resources: params.resources,
+                            systemPermissionsIsOnlySystemAgent: params.systemPermissionsIsOnlySystemAgent
                         });
                         if (!resourcesResult.success) {
                             console.error(resourcesResult);

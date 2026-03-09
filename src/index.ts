@@ -35,17 +35,18 @@ function getDefaultAuthorizationParams(): AuthorizationParams {
 }
 
 async function upsertResourcesAndPermissions(params: {	
-	url: string,
+	url: string;
 	endpoint?: string;
 	getEndpoint?: string;
 	patchEndpoint?: string;
 	putEndpoint?: string;
-    system: any, 
-    accessProfile: any,
-    agent: any,
+    system: any;
+    accessProfile: any;
+    agent: any;
     defaultResourceTypeId?: number;
-    resources?: any, 
-    parentResource?: any
+    resources?: any;
+    parentResource?: any;
+    systemPermissionsIsOnlySystemAgent?: boolean;
 }): Promise<DefaultDataSwap> {
     let result: DefaultDataSwap = new DefaultDataSwap();
     try {
@@ -139,7 +140,7 @@ async function upsertResourcesAndPermissions(params: {
                         data: {
                             resourceId: resource.id,
                             accessProfileId: params.accessProfile.id,
-                            agentId: params.agent.id,
+                            agentId: params.systemPermissionsIsOnlySystemAgent ? params.agent.id : null,
                             allowedAccess: 1,
                             allowedView: 1,
                             allowedCreate: 1,
@@ -176,7 +177,8 @@ export async function ssoRegister(params: {
 		name: string;
 	};
     defaultResourceTypeId?: number;
-	resources?: any
+	resources?: any,
+    systemPermissionsIsOnlySystemAgent?: boolean;
 }): Promise<void> {    
     //logi('ssoRegister');
     try {        
@@ -259,8 +261,9 @@ export async function ssoRegister(params: {
                             system,
                             accessProfile,
                             agent,
-                            defaultResourceTypeId: params.defaultResourceTypeId,
-                            resources: params.resources
+                            defaultResourceTypeId: params.defaultResourceTypeId,                            
+                            resources: params.resources,
+                            systemPermissionsIsOnlySystemAgent: params.systemPermissionsIsOnlySystemAgent
 						});
                         if (!resourcesResult.success) {
                             console.error(resourcesResult);
