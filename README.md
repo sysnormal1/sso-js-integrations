@@ -1,42 +1,41 @@
-# js-request-utils
+# sysnormal SSO JS Integrations
 
 [![npm
-version](https://img.shields.io/npm/v/@sysnormal/js-request-utils.svg)](https://www.npmjs.com/package/@sysnormal/js-request-utils)
+version](https://img.shields.io/npm/v/@sysnormal/sso-js-integrations.svg)](https://www.npmjs.com/package/@sysnormal/sso-js-integrations)
 [![npm
-downloads](https://img.shields.io/npm/dm/@sysnormal/js-request-utils.svg)](https://www.npmjs.com/package/@sysnormal/js-request-utils)
+downloads](https://img.shields.io/npm/dm/@sysnormal/sso-js-integrations.svg)](https://www.npmjs.com/package/@sysnormal/sso-js-integrations)
 ![TypeScript](https://badgen.net/badge/Built%20with/TypeScript/blue)
 ![License](https://img.shields.io/badge/license-ISC-blue.svg)
 
-A lightweight **TypeScript HTTP request utility library** designed for
-applications integrated with **Sysnormal SSO**.
+A **TypeScript library for integrating applications with Sysnormal
+SSO**.
 
-This library simplifies authenticated API communication by automatically
-handling:
+This package provides utilities to:
 
--   Bearer token injection
--   Token expiration detection
--   Refresh token flow
--   Automatic request retry
--   Large JSON responses
--   Common request patterns (GET/PUT/PATCH/get-or-create)
+-   Authenticate systems or agents against an SSO server
+-   Automatically register systems in the SSO registry
+-   Manage refresh tokens
+-   Detect expired tokens
+-   Register resources and permissions automatically
+-   Integrate with Sysnormal backend APIs
 
 It is designed to work together with:
 
 -   `@aalencarv/common-utils`
--   `@sysnormal/sso-js-integrations`
+-   `@sysnormal/js-request-utils`
 
 ------------------------------------------------------------------------
 
 # Installation
 
 ``` bash
-npm install @sysnormal/js-request-utils
+npm install @sysnormal/sso-js-integrations
 ```
 
 or
 
 ``` bash
-yarn add @sysnormal/js-request-utils
+yarn add @sysnormal/sso-js-integrations
 ```
 
 ------------------------------------------------------------------------
@@ -44,228 +43,133 @@ yarn add @sysnormal/js-request-utils
 # Quick Example
 
 ``` ts
-import { getData } from "@sysnormal/js-request-utils";
+import 'dotenv/config';
+import { ssoRegister } from "@sysnormal/sso-js-integrations";
+import interfaceResources from '../interface_resources.json';
 
-const result = await getData({
-    url: "https://api.example.com/user/get",
-    queryParams: {
-        where: { id: 1 }
+ssoRegister({
+    ssoUrl: `${process.env.REACT_APP_SSO_PROTOCOL}://${process.env.REACT_APP_SSO_ADDRESS}:${process.env.REACT_APP_SSO_PORT}`,
+    ssoAgent: {
+        identifierTypeId: process.env.REACT_APP_SSO_THIS_SYSTEM_AGENT_IDENTIFIER_TYPE_ID as any,
+        identifier: process.env.REACT_APP_SSO_THIS_SYSTEM_AGENT_ID as any,
+        password: process.env.REACT_APP_SSO_THIS_SYSTEM_AGENT_PASSWORD as any,
     },
-    authParams: {
-        token: "ACCESS_TOKEN",
-        refreshToken: "REFRESH_TOKEN",
-        refreshTokenUrl: "https://api.example.com/auth/refresh"
-    }
+    ssoSystem: {
+        systemPlatformId: process.env.REACT_APP_SSO_THIS_SYSTEM_PLATFORM_TYPE_ID as any,
+        systemSideId: process.env.REACT_APP_SSO_THIS_SYSTEM_SIDE_ID as any,
+        name: process.env.REACT_APP_SSO_THIS_SYSTEM_NAME as any
+    },
+    resources: interfaceResources
 });
 
-console.log(result);
+// run before starting your project:
+// npx tsx thisfile.ts
+// or
+// node thisfile.js
 ```
 
 ------------------------------------------------------------------------
 
-# Token Refresh Flow
+# Core Concepts
 
-The library automatically refreshes expired tokens.
+## System Registration
 
-Flow:
+The main idea behind this library is that **every application integrated
+with Sysnormal SSO registers itself automatically**.
 
-    Client Request
-          │
-          ▼
-    secureFetch()
-          │
-          ▼
-    defaultAuthenticatedFetch()
-          │
-          ▼
-    Server Response
-          │
-          ├── Token valid → return response
-          │
-          └── Token expired
-                 │
-                 ▼
-            refreshToken()
-                 │
-                 ▼
-         update Authorization header
-                 │
-                 ▼
-            retry original request
+The process performed by `ssoRegister`:
 
-This behavior is fully automatic when using `secureFetch` or the helper
-functions built on top of it.
+1.  Authenticate the system agent
+2.  Register the system if it does not exist
+3.  Create or retrieve an access profile
+4.  Link the agent, access profile and system
+5.  Register system resources
+6.  Configure resource permissions
 
 ------------------------------------------------------------------------
 
-# Core Types
+# Token Management
 
-## FetchParams
-
-Main configuration object used internally by request functions.
-
-Important fields:
-
--   `url` -- target endpoint
--   `authParams` -- authentication configuration
--   `reqParams` -- native fetch configuration
--   `useLargeJsonParser` -- enable streaming JSON parsing
--   `checkAndHandleExpiredToken` -- custom token expiration handler
-
-Runtime fields used internally:
-
--   `reqResponse`
--   `responseJson`
+Agent login │ ▼ Receive token + refreshToken │ ▼ Requests executed with
+Authorization header │ ▼ If token expires │ ▼ refreshToken() │ ▼
+Authorization updated automatically
 
 ------------------------------------------------------------------------
 
 # API Reference
 
-## 1. defaultAuthenticatedFetch
+## authOnSso
 
-Low-level helper around `fetch` that automatically attaches
-authentication headers.
+Authenticates an agent or system against the SSO server.
 
-Features:
+### Parameters
 
--   Injects `Authorization: Bearer <token>`
--   Converts body objects into JSON
--   Handles streaming responses
--   Supports parsing extremely large JSON payloads
--   Allows custom token expiration logic
+`SsoAuthParams`
 
-Use this when you want **full control over request behavior**.
+Fields:
+
+-   identifierTypeId
+-   identifier
+-   password
+-   url
+
+### Return
+
+`Promise<DefaultDataSwap>`
 
 ------------------------------------------------------------------------
 
-## 2. secureFetch
+## refreshToken
 
-Secure wrapper around `defaultAuthenticatedFetch`.
+Requests a new access token using a refresh token.
+
+### Parameters
+
+-   url
+-   token
+-   refreshToken
+
+### Return
+
+`Promise<DefaultDataSwap>`
+
+------------------------------------------------------------------------
+
+## checkTokenIsExpired
+
+Checks if a response indicates an expired token.
+
+Returns:
+
+`boolean`
+
+------------------------------------------------------------------------
+
+## ssoRegister
+
+High level helper used to register a system and its resources in SSO.
 
 Responsibilities:
 
--   Detect expired tokens
--   Refresh tokens automatically
--   Retry the request after refresh
--   Notify the application when new tokens are issued
-
-If `authParams.changedAuthorization` exists, it will be called with the
-new tokens.
-
-Returned value is a `DefaultDataSwap` object containing:
-
--   `success`
--   `data`
--   `message`
--   `exception`
-
-------------------------------------------------------------------------
-
-## 3. getData
-
-Utility helper implementing the common **POST /get** API pattern.
-
-Internally:
-
--   Sends POST request
--   Includes `queryParams` in body
--   Uses `secureFetch`
-
-Example request body:
-
-``` json
-{
-  "queryParams": {
-    "where": {
-      "id": 1
-    }
-  }
-}
-```
-
-------------------------------------------------------------------------
-
-## 4. putData
-
-Helper for sending **PUT requests**.
-
-Typical use cases:
-
--   Creating new entities
--   Replacing entire resources
-
-The request automatically passes through `secureFetch`, ensuring
-authentication and token refresh.
-
-------------------------------------------------------------------------
-
-## 5. patchData
-
-Helper for **PATCH requests** used for partial updates.
-
-Automatically:
-
--   sets headers
--   injects authentication
--   refreshes expired tokens
-
-------------------------------------------------------------------------
-
-## 6. getOrCreate
-
-Utility implementing a **get-or-create pattern** commonly used in system
-integrations.
-
-Flow:
-
-    GET resource
-       │
-       ├── exists → return data
-       │
-       └── not found
-               │
-               ▼
-            PUT resource
-
-Common scenarios:
-
--   system registration
--   configuration initialization
--   idempotent resource creation
-
-Parameters:
-
--   `url` -- base API URL
--   `endpoint` -- main resource endpoint
--   `getEndpoint` -- optional custom GET endpoint
--   `putEndpoint` -- optional custom PUT endpoint
--   `data` -- payload for creation
--   `queryParams` -- lookup filters
--   `where` -- alternative lookup filter
--   `authParams` -- authentication parameters
+1.  Authenticate or register agent
+2.  Register system
+3.  Create access profile
+4.  Link agent + access profile + system
+5.  Register resources
+6.  Assign permissions
 
 ------------------------------------------------------------------------
 
 # Dependencies
 
-This package relies on:
+-   @aalencarv/common-utils
+-   @sysnormal/js-request-utils
 
--   `@aalencarv/common-utils`
--   `@sysnormal/sso-js-integrations`
-
-These provide:
-
--   shared utilities
--   token validation
--   token refresh logic
--   standardized response structures
-
+------------------------------------------------------------------------
 
 # Author
 
-**Aalencar Velozo**
-
-GitHub\
+Aalencar Velozo\
 https://github.com/aalencarvz1
 
 ------------------------------------------------------------------------
@@ -281,4 +185,4 @@ https://github.com/sysnormal
 
 # License
 
-ISC License
+ISC

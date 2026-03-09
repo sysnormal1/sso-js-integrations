@@ -1,7 +1,7 @@
 {
   "name": "@sysnormal/sso-js-integrations",
   "package": "@sysnormal/sso-js-integrations",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "author": "aalencarvz@gmail.com",
   "license": "ISC",
   "type": "module",
