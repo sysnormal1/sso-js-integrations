@@ -1,32 +1,32 @@
 import { DefaultDataSwap, hasValue, typeOf } from '@aalencarv/common-utils';
 import { authOnSso } from './helpers/auth/AuthenticationHelper.js';
-import { getData, getOrCreate, patchData, putData } from '@sysnormal/js-request-utils';
+import { getConfigs } from './Config.js';
+import { getData, getOrCreate, patchData, putData } from './helpers/request/RequestHelper.js';
 //reexports to public
+export { config, getConfigs } from './Config.js';
+export { getSsoUrl } from './helpers/CommonHelper.js';
 export { authOnSso, refreshToken, checkTokenIsExpired } from './helpers/auth/AuthenticationHelper.js';
-var SSO_URL;
-var REFRESH_TOKEN_ENDPOINT;
+export { getAgentAllowedResources, getResourcePermission } from './helpers/resources/ResourcesHelper.js';
+export { secureFetch, defaultAuthenticatedFetch, getData, putData, patchData, getOrCreate } from './helpers/request/RequestHelper.js';
 var LAST_TOKEN;
 var LAST_REFRESH_TOKEN;
-var RECORDS_ENDPOINT;
 function changedAuthorization(changedParams) {
     LAST_TOKEN = changedParams.token;
     LAST_REFRESH_TOKEN = changedParams.refreshToken;
 }
 function getDefaultAuthorizationParams() {
+    const configs = getConfigs();
     return {
         token: LAST_TOKEN,
         refreshToken: LAST_REFRESH_TOKEN,
-        refreshTokenUrl: `${SSO_URL}${REFRESH_TOKEN_ENDPOINT}`,
+        refreshTokenUrl: `${configs.ssoUrl}${configs.ssoRefreshTokenEndpoint}`,
         changedAuthorization: changedAuthorization
     };
 }
 async function upsertResourcesAndPermissions(params) {
     let result = new DefaultDataSwap();
     try {
-        params.endpoint = params.endpoint || `${RECORDS_ENDPOINT}/resources`;
-        params.getEndpoint = params.getEndpoint || `${params.endpoint}${params.endpoint?.lastIndexOf('/get') === (params.endpoint || '').length - 4 ? '' : '/get'}`;
-        params.patchEndpoint = params.patchEndpoint || params.endpoint;
-        params.putEndpoint = params.putEndpoint || params.endpoint;
+        const configs = getConfigs();
         if (typeOf(params.resources) === 'array') {
             for (let k in params.resources) {
                 result = await upsertResourcesAndPermissions({
@@ -50,7 +50,7 @@ async function upsertResourcesAndPermissions(params) {
                 resource.parentId = params.parentResource.id;
             }
             result = await getData({
-                url: `${params.url}${params.getEndpoint}`,
+                url: `${configs.ssoUrl}${configs.ssoResourcesEndpoint}/get`,
                 queryParams: {
                     where: {
                         systemId: resource.systemId,
@@ -59,7 +59,7 @@ async function upsertResourcesAndPermissions(params) {
                         name: resource.name
                     }
                 },
-                authParams: getDefaultAuthorizationParams()
+                authContextGetter: getDefaultAuthorizationParams
             });
             if (result.success && hasValue(result.data)) {
                 let foundedResource = result.data[0] || result.data;
@@ -71,17 +71,17 @@ async function upsertResourcesAndPermissions(params) {
                     foundedResource.numericOrder = resource.numericOrder;
                     foundedResource.showInMenu = resource.showInMenu;
                     result = await patchData({
-                        url: `${params.url}${params.patchEndpoint}/${resource.id}`,
+                        url: `${configs.ssoUrl}${configs.ssoResourcesEndpoint}/${resource.id}`,
                         data: resource,
-                        authParams: getDefaultAuthorizationParams()
+                        authContextGetter: getDefaultAuthorizationParams
                     });
                 }
             }
             else {
                 result = await putData({
-                    url: `${params.url}${params.putEndpoint}`,
+                    url: `${configs.ssoUrl}${configs.ssoResourcesEndpoint}`,
                     data: resource,
-                    authParams: getDefaultAuthorizationParams()
+                    authContextGetter: getDefaultAuthorizationParams
                 });
             }
             if (result.success) {
@@ -95,12 +95,12 @@ async function upsertResourcesAndPermissions(params) {
                 }
                 if (result.success) {
                     result = await getOrCreate({
-                        url: params.url,
-                        endpoint: `${RECORDS_ENDPOINT}/resource_permissions`,
+                        url: configs.ssoUrl || '',
+                        endpoint: configs.ssoResourcePermissionsEndpoint || '',
                         where: {
                             resourceId: resource.id,
                             accessProfileId: params.accessProfile.id,
-                            agentId: params.agent.id
+                            agentId: params.systemPermissionsIsOnlySystemAgent ? params.agent.id : null
                         },
                         data: {
                             resourceId: resource.id,
@@ -112,7 +112,7 @@ async function upsertResourcesAndPermissions(params) {
                             allowedChange: 1,
                             allowedDelete: 1
                         },
-                        authParams: getDefaultAuthorizationParams()
+                        authContextGetter: getDefaultAuthorizationParams
                     });
                 }
             }
@@ -127,24 +127,17 @@ async function upsertResourcesAndPermissions(params) {
 export async function ssoRegister(params) {
     //logi('ssoRegister');
     try {
-        params.ssoLoginEndpoint = params.ssoLoginEndpoint || "/auth/login";
-        params.ssoRegisterEndpoint = params.ssoRegisterEndpoint || "/auth/register";
-        params.ssoRefreshTokenEndpoint = params.ssoRefreshTokenEndpoint || "/auth/refresh_token";
-        params.ssoRecordsEndpoint = params.ssoRecordsEndpoint || "/records";
-        REFRESH_TOKEN_ENDPOINT = params.ssoRefreshTokenEndpoint;
-        RECORDS_ENDPOINT = params.ssoRecordsEndpoint;
         //login or register with system (system agent)
-        console.log("antes1");
+        const configs = getConfigs();
         let agentResponseJson = await authOnSso({
-            url: `${params.ssoUrl}${params.ssoLoginEndpoint}`,
+            url: `${configs.ssoUrl}${configs.ssoLoginEndpoint}`,
             identifierTypeId: params.ssoAgent.identifierTypeId,
             identifier: params.ssoAgent.identifier,
             password: params.ssoAgent.password
         });
-        console.log("xxxx", agentResponseJson);
         if (!agentResponseJson.success && (agentResponseJson.message || '').indexOf("not found") > -1) {
             agentResponseJson = await authOnSso({
-                url: `${params.ssoUrl}${params.ssoRegisterEndpoint}`,
+                url: `${configs.ssoUrl}${configs.ssoRegisterEndpoint}`,
                 identifierTypeId: params.ssoAgent.identifierTypeId,
                 identifier: params.ssoAgent.identifier,
                 password: params.ssoAgent.password
@@ -161,10 +154,10 @@ export async function ssoRegister(params) {
                 name: params.ssoSystem.name
             };
             let systemResponseJson = await getOrCreate({
-                url: params.ssoUrl,
-                endpoint: `${params.ssoRecordsEndpoint}/systems`,
+                url: configs.ssoUrl || '',
+                endpoint: configs.ssoSystemsEndpoint || '',
                 data: system,
-                authParams: getDefaultAuthorizationParams()
+                authContextGetter: getDefaultAuthorizationParams
             });
             if (systemResponseJson.success && hasValue(systemResponseJson.data)) {
                 system = systemResponseJson.data[0] || systemResponseJson.data;
@@ -173,10 +166,10 @@ export async function ssoRegister(params) {
                     name: "SYSTEM"
                 };
                 let accessProfileResponseJson = await getOrCreate({
-                    url: params.ssoUrl,
-                    endpoint: `${params.ssoRecordsEndpoint}/access_profiles`,
+                    url: configs.ssoUrl || '',
+                    endpoint: configs.ssoAccessProfilesEndpoint || '',
                     data: accessProfile,
-                    authParams: getDefaultAuthorizationParams()
+                    authContextGetter: getDefaultAuthorizationParams
                 });
                 if (accessProfileResponseJson.success) {
                     accessProfile = accessProfileResponseJson.data[0] || accessProfileResponseJson.data;
@@ -187,16 +180,15 @@ export async function ssoRegister(params) {
                         systemId: system.id
                     };
                     let agentXAccessProfileXSystemResponseJson = await getOrCreate({
-                        url: params.ssoUrl,
-                        endpoint: `${params.ssoRecordsEndpoint}/agents_x_access_profiles_x_systems`,
+                        url: configs.ssoUrl || '',
+                        endpoint: configs.ssoAgentsXAccessProfilesXSystemsEndpoint || '',
                         data: agentXAccessProfileXSystem,
-                        authParams: getDefaultAuthorizationParams()
+                        authContextGetter: getDefaultAuthorizationParams
                     });
                     if (agentXAccessProfileXSystemResponseJson.success) {
                         agentXAccessProfileXSystem = agentXAccessProfileXSystemResponseJson.data[0] || agentXAccessProfileXSystemResponseJson.data;
                         //upsert resources
                         const resourcesResult = await upsertResourcesAndPermissions({
-                            url: params.ssoUrl,
                             system,
                             accessProfile,
                             agent,

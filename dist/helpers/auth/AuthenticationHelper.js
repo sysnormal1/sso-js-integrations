@@ -1,8 +1,13 @@
 import { DefaultDataSwap } from "@aalencarv/common-utils";
+import { getSsoUrl } from "../CommonHelper.js";
+import { getConfigs } from "../../Config.js";
 export async function authOnSso(params) {
     let result = new DefaultDataSwap();
     try {
-        let response = await fetch(params.url || '', {
+        const configs = getConfigs();
+        const url = getSsoUrl({ ...params, ssoUrl: params.url || configs.ssoUrl, ssoEndpoint: params.endpoint || configs.ssoAuthEndpoint });
+        console.debug('requesting auth sso', url);
+        let response = await fetch(url || '', {
             method: "POST",
             headers: {
                 Accept: "application/json",
@@ -24,7 +29,10 @@ export async function authOnSso(params) {
 export async function refreshToken(params) {
     let result = new DefaultDataSwap();
     try {
-        let resultRequest = await fetch(params.url || '', {
+        const configs = getConfigs();
+        const url = getSsoUrl({ ...params, ssoUrl: params.url || configs.ssoUrl, ssoEndpoint: params.endpoint || configs.ssoRefreshTokenEndpoint });
+        console.debug("refreshing token", url, params);
+        let resultRequest = await fetch(url || '', {
             method: "POST",
             headers: {
                 Accept: "application/json",
@@ -38,6 +46,7 @@ export async function refreshToken(params) {
         result = await resultRequest.json();
     }
     catch (e) {
+        console.error(e);
         result.setException(e);
     }
     return result;

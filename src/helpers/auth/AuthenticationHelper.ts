@@ -1,19 +1,29 @@
 import { DefaultDataSwap } from "@aalencarv/common-utils";
+import { getSsoUrl } from "../CommonHelper.js";
+import { ConfigParams, getConfigs } from "../../Config.js";
 
-
+export type AuthorizationParams = {
+	token?: string;
+	refreshToken?: string;
+	refreshTokenUrl?: string;
+	changedAuthorization?: (changed: AuthorizationParams)=>void
+}
 
 export type SsoAuthParams = {
     identifierTypeId?: number,
     identifier: string | number,
     password: string | number,
-    url?: string
+    url?: string, 
+    endpoint?: string
 }
 
 export async function authOnSso(params: SsoAuthParams): Promise<DefaultDataSwap> {
     let result = new DefaultDataSwap();
     try {
-        
-        let response = await fetch(params.url||'',{
+        const configs: ConfigParams = getConfigs();
+        const url = getSsoUrl({...params, ssoUrl: params.url || configs.ssoUrl, ssoEndpoint: params.endpoint || configs.ssoAuthEndpoint})
+        console.debug('requesting auth sso',url);
+        let response = await fetch(url||'',{
             method: "POST",
             headers: {
                 Accept: "application/json",
@@ -36,12 +46,16 @@ export async function authOnSso(params: SsoAuthParams): Promise<DefaultDataSwap>
 
 export async function refreshToken(params: {
     url?: string,
+    endpoint?: string,
     token: string, 
     refreshToken: string
-}) : Promise<DefaultDataSwap>{
+}) : Promise<DefaultDataSwap> {
     let result: DefaultDataSwap = new DefaultDataSwap();
     try {
-        let resultRequest = await fetch(params.url || '',{
+        const configs: ConfigParams = getConfigs();
+        const url = getSsoUrl({...params, ssoUrl: params.url || configs.ssoUrl, ssoEndpoint: params.endpoint || configs.ssoRefreshTokenEndpoint})
+        console.debug("refreshing token",url,params);
+        let resultRequest = await fetch(url || '',{
             method: "POST",
             headers:{
                 Accept: "application/json",
@@ -54,6 +68,7 @@ export async function refreshToken(params: {
         });
         result = await resultRequest.json();
     } catch (e) {
+        console.error(e);
         result.setException(e);
     }
     return result;
@@ -73,3 +88,4 @@ export function checkTokenIsExpired(resultJson?: any) : boolean {
     }
     return result;
 }
+

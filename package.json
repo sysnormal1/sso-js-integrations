@@ -1,7 +1,7 @@
 {
   "name": "@sysnormal/sso-js-integrations",
   "package": "@sysnormal/sso-js-integrations",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "author": "aalencarvz@gmail.com",
   "license": "ISC",
   "type": "module",
@@ -20,14 +20,16 @@
     "integration"
   ],
   "devDependencies": {
+    "@types/node": "^25.4.0",
     "cross-env": "^10.1.0",
+    "debug": "^4.4.3",
     "typescript": "^5.8.3"
   },
   "publishConfig": {
     "access": "public"
   },
   "dependencies": {
-    "@aalencarv/common-utils": "^1.11.0",
-    "@sysnormal/js-request-utils": "^1.0.2"
+    "@aalencarv/common-utils": "file:D:/PROJECTS/INFORMATIC/libs/js/ts/node/common-utils",
+    "jwt-decode": "^4.0.0"
   }
 }

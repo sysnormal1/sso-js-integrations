@@ -1,0 +1,23 @@
+export type ConfigParams = {
+    ssoProtocol?: 'http' | 'https';
+    ssoAddress?: string;
+    ssoPort?: number | null | undefined;
+    ssoUrl?: string;
+    ssoRegisterEndpoint?: string;
+    ssoLoginEndpoint?: string;
+    ssoAuthEndpoint?: string;
+    ssoRefreshTokenEndpoint?: string;
+    ssoRecordsEndpoint?: string;
+    ssoSystemsEndpoint?: string;
+    ssoAccessProfilesEndpoint?: string;
+    ssoAgentsXAccessProfilesXSystemsEndpoint?: string;
+    ssoResourcesEndpoint?: string;
+    ssoResourcePermissionsEndpoint?: string;
+    ssoGetAllowedsResourcesEndpoint?: string;
+    ssoGetResourcePermissionsEndpoint?: string;
+    ssoThisSystemId?: number | null | undefined;
+    ssoResourcetypeScreenId?: number;
+    showResourceAsPopup?: boolean;
+};
+export declare function config(params?: ConfigParams): void;
+export declare function getConfigs(): ConfigParams;
