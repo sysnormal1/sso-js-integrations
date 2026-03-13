@@ -29,7 +29,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@aalencarv/common-utils": "file:D:/PROJECTS/INFORMATIC/libs/js/ts/node/common-utils",
+    "@aalencarv/common-utils": "^1.12.0",
     "jwt-decode": "^4.0.0"
   }
 }
