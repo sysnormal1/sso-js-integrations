@@ -1,4 +1,5 @@
-# sysnormal SSO JS Integrations
+
+# sso-js-integrations
 
 [![npm
 version](https://img.shields.io/npm/v/@sysnormal/sso-js-integrations.svg)](https://www.npmjs.com/package/@sysnormal/sso-js-integrations)
@@ -7,165 +8,286 @@ downloads](https://img.shields.io/npm/dm/@sysnormal/sso-js-integrations.svg)](ht
 ![TypeScript](https://badgen.net/badge/Built%20with/TypeScript/blue)
 ![License](https://img.shields.io/badge/license-ISC-blue.svg)
 
-A **TypeScript library for integrating applications with Sysnormal
-SSO**.
+JavaScript/TypeScript utilities to integrate applications with a **Single Sign-On (SSO)** authentication server.
 
-This package provides utilities to:
+This library provides helpers for:
 
--   Authenticate systems or agents against an SSO server
--   Automatically register systems in the SSO registry
--   Manage refresh tokens
--   Detect expired tokens
--   Register resources and permissions automatically
--   Integrate with Sysnormal backend APIs
+- SSO authentication
+- automatic token refresh
+- authenticated HTTP requests
+- secure API access using `fetch`
+- handling large JSON responses
+- simple data helpers for CRUD-style endpoints
 
-It is designed to work together with:
+It is designed to work in **frontend (React, browser)** or **Node.js** environments.
 
--   `@aalencarv/common-utils`
--   `@sysnormal/js-request-utils`
-
-------------------------------------------------------------------------
+---
 
 # Installation
 
-``` bash
+```bash
 npm install @sysnormal/sso-js-integrations
 ```
 
-or
+Peer dependency:
 
-``` bash
-yarn add @sysnormal/sso-js-integrations
+```bash
+npm install @aalencarv/common-utils
 ```
 
-------------------------------------------------------------------------
+---
 
-# Quick Example
+# Overview
 
-``` ts
-import 'dotenv/config';
-import { ssoRegister } from "@sysnormal/sso-js-integrations";
-import interfaceResources from '../interface_resources.json';
+The library provides a **lightweight authentication SDK** built on top of the native `fetch` API.
 
-ssoRegister({
-    ssoUrl: `${process.env.REACT_APP_SSO_PROTOCOL}://${process.env.REACT_APP_SSO_ADDRESS}:${process.env.REACT_APP_SSO_PORT}`,
-    ssoAgent: {
-        identifierTypeId: process.env.REACT_APP_SSO_THIS_SYSTEM_AGENT_IDENTIFIER_TYPE_ID as any,
-        identifier: process.env.REACT_APP_SSO_THIS_SYSTEM_AGENT_ID as any,
-        password: process.env.REACT_APP_SSO_THIS_SYSTEM_AGENT_PASSWORD as any,
-    },
-    ssoSystem: {
-        systemPlatformId: process.env.REACT_APP_SSO_THIS_SYSTEM_PLATFORM_TYPE_ID as any,
-        systemSideId: process.env.REACT_APP_SSO_THIS_SYSTEM_SIDE_ID as any,
-        name: process.env.REACT_APP_SSO_THIS_SYSTEM_NAME as any
-    },
-    resources: interfaceResources
+Main features:
+
+- automatic Bearer token injection
+- automatic token refresh
+- retry request after refresh
+- helper methods for common CRUD requests
+- large JSON streaming parser support
+
+Typical flow:
+
+```
+secureFetch()
+      ↓
+defaultAuthenticatedFetch()
+      ↓
+fetch()
+      ↓
+checkTokenIsExpired()
+      ↓
+refreshToken()
+      ↓
+retry request
+```
+
+---
+
+# Authentication
+
+## `authOnSso()`
+
+Authenticate a user against the SSO server.
+
+```ts
+import { authOnSso } from "@sysnormal/sso-js-integrations";
+
+const result = await authOnSso({
+  identifier: "user@email.com",
+  password: "password"
 });
 
-// run before starting your project:
-// npx tsx thisfile.ts
-// or
-// node thisfile.js
+if(result.success) {
+  console.log(result.data.token);
+}
 ```
 
-------------------------------------------------------------------------
+Parameters:
 
-# Core Concepts
+- `identifier`
+- `password`
+- `identifierTypeId` (optional)
+- `url` (optional SSO base URL)
+- `endpoint` (optional authentication endpoint)
 
-## System Registration
+Returns a `DefaultDataSwap` response.
 
-The main idea behind this library is that **every application integrated
-with Sysnormal SSO registers itself automatically**.
+---
 
-The process performed by `ssoRegister`:
+# Token Refresh
 
-1.  Authenticate the system agent
-2.  Register the system if it does not exist
-3.  Create or retrieve an access profile
-4.  Link the agent, access profile and system
-5.  Register system resources
-6.  Configure resource permissions
+## `refreshToken()`
 
-------------------------------------------------------------------------
+Refresh an expired authentication token.
 
-# Token Management
+```ts
+import { refreshToken } from "@sysnormal/sso-js-integrations";
 
-Agent login │ ▼ Receive token + refreshToken │ ▼ Requests executed with
-Authorization header │ ▼ If token expires │ ▼ refreshToken() │ ▼
-Authorization updated automatically
+const result = await refreshToken({
+  token: currentToken,
+  refreshToken: currentRefreshToken
+});
+```
 
-------------------------------------------------------------------------
+If successful, the response contains a **new token and refresh token**.
 
-# API Reference
+---
 
-## authOnSso
+# Authenticated Requests
 
-Authenticates an agent or system against the SSO server.
+## `secureFetch()`
 
-### Parameters
+Performs a request with:
 
-`SsoAuthParams`
+- automatic Bearer token
+- expired token detection
+- automatic refresh
+- retry of the original request
 
-Fields:
+```ts
+const result = await secureFetch({
+  url: "/api/data",
+  authContextGetter: () => authContext
+});
+```
 
--   identifierTypeId
--   identifier
--   password
--   url
+`authContextGetter` must return:
 
-### Return
+```ts
+{
+  token: string
+  refreshToken: string
+  refreshTokenUrl?: string
+  changedAuthorization?: (auth) => void
+}
+```
 
-`Promise<DefaultDataSwap>`
+If the token expires:
 
-------------------------------------------------------------------------
+1. `refreshToken()` is called
+2. the token is updated
+3. the original request is retried automatically
 
-## refreshToken
+---
 
-Requests a new access token using a refresh token.
+# Default Authenticated Fetch
 
-### Parameters
+## `defaultAuthenticatedFetch()`
 
--   url
--   token
--   refreshToken
+Lower-level request helper used internally by `secureFetch`.
 
-### Return
+Features:
 
-`Promise<DefaultDataSwap>`
+- injects Authorization header
+- handles JSON parsing
+- optional large JSON streaming parser
 
-------------------------------------------------------------------------
+Example:
 
-## checkTokenIsExpired
+```ts
+await defaultAuthenticatedFetch({
+  url: "/api/data",
+  reqParams: { method: "GET" },
+  authContextGetter: () => authContext
+});
+```
 
-Checks if a response indicates an expired token.
+---
 
-Returns:
+# Large JSON Handling
 
-`boolean`
+For very large responses you can enable streaming parsing.
 
-------------------------------------------------------------------------
+```ts
+secureFetch({
+  url: "/api/large-data",
+  useLargeJsonParser: true
+});
+```
 
-## ssoRegister
+This uses `largeJsonParse()` from `@aalencarv/common-utils` to reduce memory pressure when handling large payloads.
 
-High level helper used to register a system and its resources in SSO.
+---
 
-Responsibilities:
+# Data Helpers
 
-1.  Authenticate or register agent
-2.  Register system
-3.  Create access profile
-4.  Link agent + access profile + system
-5.  Register resources
-6.  Assign permissions
+The library includes simple wrappers for common data operations.
 
-------------------------------------------------------------------------
+## `getData()`
+
+```ts
+await getData({
+  url: "/api/users",
+  queryParams: { id: 10 }
+});
+```
+
+---
+
+## `putData()`
+
+```ts
+await putData({
+  url: "/api/users",
+  data: user
+});
+```
+
+---
+
+## `patchData()`
+
+```ts
+await patchData({
+  url: "/api/users",
+  data: partialUser
+});
+```
+
+---
+
+## `getOrCreate()`
+
+Attempts to fetch a resource, creating it if it does not exist.
+
+```ts
+await getOrCreate({
+  url: "/api",
+  endpoint: "/users",
+  data: user
+});
+```
+
+Flow:
+
+```
+GET resource
+   ↓
+exists?
+   ↓ yes → return
+   ↓ no
+PUT create
+```
+
+---
+
+# Authorization Context
+
+Applications typically store tokens in a context or state manager.
+
+Example:
+
+```ts
+const authContext = {
+  token: "...",
+  refreshToken: "...",
+  refreshTokenUrl: "/sso/refresh",
+  changedAuthorization: (auth) => {
+    authContext.token = auth.token;
+    authContext.refreshToken = auth.refreshToken;
+  }
+}
+```
+
+This allows `secureFetch` to update the token automatically after refresh.
+
+---
 
 # Dependencies
 
--   @aalencarv/common-utils
--   @sysnormal/js-request-utils
+- `@aalencarv/common-utils`
 
-------------------------------------------------------------------------
+Used for:
+
+- `DefaultDataSwap`
+- `largeJsonParse`
+- helper utilities
+
+---
 
 # Author
 
