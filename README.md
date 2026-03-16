@@ -1,25 +1,29 @@
 
-# sso-js-integrations
+# Sysnormal SSO JS Integrations
 
-[![npm
-version](https://img.shields.io/npm/v/@sysnormal/sso-js-integrations.svg)](https://www.npmjs.com/package/@sysnormal/sso-js-integrations)
-[![npm
-downloads](https://img.shields.io/npm/dm/@sysnormal/sso-js-integrations.svg)](https://www.npmjs.com/package/@sysnormal/sso-js-integrations)
+[![npm version](https://img.shields.io/npm/v/@sysnormal/sso-js-integrations.svg)](https://www.npmjs.com/package/@sysnormal/sso-js-integrations)
+[![npm downloads](https://img.shields.io/npm/dm/@sysnormal/sso-js-integrations.svg)](https://www.npmjs.com/package/@sysnormal/sso-js-integrations)
 ![TypeScript](https://badgen.net/badge/Built%20with/TypeScript/blue)
 ![License](https://img.shields.io/badge/license-ISC-blue.svg)
 
-JavaScript/TypeScript utilities to integrate applications with a **Single Sign-On (SSO)** authentication server.
+A **TypeScript library for integrating applications with Sysnormal SSO**.
 
-This library provides helpers for:
+This package provides a lightweight **authentication and request SDK** for applications that need to communicate with a Sysnormal SSO backend.
 
-- SSO authentication
+It includes utilities for:
+
+- authenticating users and systems
 - automatic token refresh
-- authenticated HTTP requests
-- secure API access using `fetch`
-- handling large JSON responses
-- simple data helpers for CRUD-style endpoints
+- secure HTTP requests using `fetch`
+- automatic retry after token expiration
+- large JSON response handling
+- helper methods for common API operations
 
-It is designed to work in **frontend (React, browser)** or **Node.js** environments.
+The library works in:
+
+- **Browser environments (React, Vue, etc.)**
+- **Node.js**
+- **TypeScript or JavaScript projects**
 
 ---
 
@@ -37,19 +41,9 @@ npm install @aalencarv/common-utils
 
 ---
 
-# Overview
+# Architecture Overview
 
-The library provides a **lightweight authentication SDK** built on top of the native `fetch` API.
-
-Main features:
-
-- automatic Bearer token injection
-- automatic token refresh
-- retry request after refresh
-- helper methods for common CRUD requests
-- large JSON streaming parser support
-
-Typical flow:
+The library implements a **secure request pipeline** built on top of the native `fetch` API.
 
 ```
 secureFetch()
@@ -62,26 +56,33 @@ checkTokenIsExpired()
       ↓
 refreshToken()
       ↓
-retry request
+retry request automatically
 ```
+
+Features:
+
+- Automatic **Bearer token injection**
+- Automatic **token refresh**
+- Transparent **retry of failed requests**
+- Optional **stream parsing for very large JSON responses**
 
 ---
 
 # Authentication
 
-## `authOnSso()`
+## authOnSso()
 
-Authenticate a user against the SSO server.
+Authenticate a user or agent against the SSO server.
 
 ```ts
 import { authOnSso } from "@sysnormal/sso-js-integrations";
 
 const result = await authOnSso({
   identifier: "user@email.com",
-  password: "password"
+  password: "secret"
 });
 
-if(result.success) {
+if (result.success) {
   console.log(result.data.token);
 }
 ```
@@ -94,13 +95,17 @@ Parameters:
 - `url` (optional SSO base URL)
 - `endpoint` (optional authentication endpoint)
 
-Returns a `DefaultDataSwap` response.
+Returns:
+
+```
+DefaultDataSwap
+```
 
 ---
 
 # Token Refresh
 
-## `refreshToken()`
+## refreshToken()
 
 Refresh an expired authentication token.
 
@@ -113,29 +118,36 @@ const result = await refreshToken({
 });
 ```
 
-If successful, the response contains a **new token and refresh token**.
+If successful, the response contains:
+
+- new access token
+- new refresh token
 
 ---
 
-# Authenticated Requests
+# Secure Requests
 
-## `secureFetch()`
+## secureFetch()
 
-Performs a request with:
+Performs an authenticated request with automatic session recovery.
+
+Features:
 
 - automatic Bearer token
 - expired token detection
-- automatic refresh
-- retry of the original request
+- refresh token execution
+- retry of original request
+
+Example:
 
 ```ts
 const result = await secureFetch({
-  url: "/api/data",
+  url: "/api/users",
   authContextGetter: () => authContext
 });
 ```
 
-`authContextGetter` must return:
+The `authContextGetter` must return:
 
 ```ts
 {
@@ -146,25 +158,26 @@ const result = await secureFetch({
 }
 ```
 
-If the token expires:
+When a token expires:
 
-1. `refreshToken()` is called
-2. the token is updated
-3. the original request is retried automatically
+1. `refreshToken()` is executed
+2. the authorization context is updated
+3. the original request is executed again
 
 ---
 
 # Default Authenticated Fetch
 
-## `defaultAuthenticatedFetch()`
+## defaultAuthenticatedFetch()
 
-Lower-level request helper used internally by `secureFetch`.
+Lower-level helper used internally by `secureFetch`.
 
-Features:
+Responsibilities:
 
-- injects Authorization header
-- handles JSON parsing
-- optional large JSON streaming parser
+- attach authorization header
+- normalize request parameters
+- parse JSON responses
+- support large JSON streaming parsing
 
 Example:
 
@@ -180,7 +193,9 @@ await defaultAuthenticatedFetch({
 
 # Large JSON Handling
 
-For very large responses you can enable streaming parsing.
+Very large API responses can be parsed using a streaming approach.
+
+Enable it with:
 
 ```ts
 secureFetch({
@@ -189,15 +204,23 @@ secureFetch({
 });
 ```
 
-This uses `largeJsonParse()` from `@aalencarv/common-utils` to reduce memory pressure when handling large payloads.
+Internally this uses:
+
+```
+largeJsonParse()
+```
+
+from `@aalencarv/common-utils`.
+
+This helps prevent memory pressure when dealing with large payloads.
 
 ---
 
-# Data Helpers
+# Data Helper Methods
 
-The library includes simple wrappers for common data operations.
+The library also provides simplified helpers for common API patterns.
 
-## `getData()`
+## getData()
 
 ```ts
 await getData({
@@ -208,7 +231,7 @@ await getData({
 
 ---
 
-## `putData()`
+## putData()
 
 ```ts
 await putData({
@@ -219,7 +242,7 @@ await putData({
 
 ---
 
-## `patchData()`
+## patchData()
 
 ```ts
 await patchData({
@@ -230,9 +253,9 @@ await patchData({
 
 ---
 
-## `getOrCreate()`
+## getOrCreate()
 
-Attempts to fetch a resource, creating it if it does not exist.
+Fetches a resource or creates it if it does not exist.
 
 ```ts
 await getOrCreate({
@@ -242,7 +265,7 @@ await getOrCreate({
 });
 ```
 
-Flow:
+Workflow:
 
 ```
 GET resource
@@ -255,11 +278,9 @@ PUT create
 
 ---
 
-# Authorization Context
+# Authorization Context Example
 
 Applications typically store tokens in a context or state manager.
-
-Example:
 
 ```ts
 const authContext = {
@@ -273,7 +294,7 @@ const authContext = {
 }
 ```
 
-This allows `secureFetch` to update the token automatically after refresh.
+This allows `secureFetch` to automatically update tokens when they are refreshed.
 
 ---
 
@@ -283,27 +304,28 @@ This allows `secureFetch` to update the token automatically after refresh.
 
 Used for:
 
-- `DefaultDataSwap`
-- `largeJsonParse`
-- helper utilities
+- DefaultDataSwap
+- largeJsonParse
+- utility helpers
 
 ---
-
-# Author
-
-Aalencar Velozo\
-https://github.com/aalencarvz1
-
-------------------------------------------------------------------------
 
 # Organization
 
 **Sysnormal**
 
+Internal utilities and integration tools for Sysnormal platform services.
 GitHub\
 https://github.com/sysnormal
 
-------------------------------------------------------------------------
+---
+
+# Author
+
+**Alencar Velozo**  
+aalencarvz@gmail.com
+
+---
 
 # License
 
