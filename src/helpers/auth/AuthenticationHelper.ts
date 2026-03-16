@@ -1,6 +1,7 @@
 import { DefaultDataSwap } from "@aalencarv/common-utils";
 import { getSsoUrl } from "../CommonHelper.js";
 import { ConfigParams, getConfigs } from "../../Config.js";
+import { FetchParams } from "../request/RequestHelper.js";
 
 /**
  * Represents the authorization context used by the SSO integration.
@@ -31,6 +32,15 @@ export type AuthorizationParams = {
      * Endpoint URL used to refresh the authentication tokens.
      */
     refreshTokenUrl?: string;
+
+    /**
+     * 
+     * callback called when refresh token is expired
+     * 
+     * @param lastFetchParams contains last requested fetch params that not refreshed token
+     * @param lastResult contains last result with expired refresh token
+     */
+    whenRefreshTokenIsExpired?: (lastFetchParams?: FetchParams, lastResult?: DefaultDataSwap) => void,
 
     /**
      * Callback invoked when the authorization data changes.
