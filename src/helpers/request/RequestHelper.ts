@@ -108,8 +108,9 @@ export async function defaultAuthenticatedFetch(params: FetchParams): Promise<an
 		 * Automatically attach bearer token if not provided.
 		 */
 		if (!hasValue(params.reqParams.headers.Authorization)) {
-			if (typeof params.authContextGetter === "function" && hasValue(params.authContextGetter().token)) {
-				params.reqParams.headers.Authorization = `Bearer ${params.authContextGetter().token}`;
+            const authContextGetter = params.authContextGetter || getConfigs().authContextGetter;
+			if (typeof authContextGetter === "function" && hasValue(authContextGetter().token)) {
+				params.reqParams.headers.Authorization = `Bearer ${authContextGetter().token}`;
 			} else {
 				params.reqParams.headers.Authorization = undefined;
 				delete params.reqParams.headers.Authorization;
@@ -200,18 +201,20 @@ export async function secureFetch(params: FetchParams) : Promise<DefaultDataSwap
                     console.debug("token is expired, refreshing...");
                     checkParams.responseJson.message = 'expired session';
 
-                    if (typeof checkParams.authContextGetter === "function") {
+                    const authContextGetter = checkParams.authContextGetter || getConfigs().authContextGetter;
+
+                    if (typeof authContextGetter === "function") {
 
                         result = await refreshToken({
-                            url: checkParams.authContextGetter().refreshTokenUrl,
-                            token: checkParams.authContextGetter().token || '',
-                            refreshToken: checkParams.authContextGetter().refreshToken || ''
+                            url: authContextGetter().refreshTokenUrl,
+                            token: authContextGetter().token || '',
+                            refreshToken: authContextGetter().refreshToken || ''
                         });
 
                         if (result?.success) {
                             console.debug("refreshed token");
-                            if (typeof checkParams.authContextGetter().changedAuthorization === "function") {
-                                (checkParams.authContextGetter().changedAuthorization as any)({
+                            if (typeof authContextGetter().changedAuthorization === "function") {
+                                (authContextGetter().changedAuthorization as any)({
                                     token: result.data.token,
                                     refreshToken: result.data.refreshToken,
                                 });
@@ -224,7 +227,7 @@ export async function secureFetch(params: FetchParams) : Promise<DefaultDataSwap
                         } else {
                             if (checkTokenIsExpired(result)) {
                                 console.debug("refresh token is expired");                                
-                                let whenRefreshTokenIsExpired = checkParams.authContextGetter().whenRefreshTokenIsExpired;
+                                let whenRefreshTokenIsExpired = authContextGetter().whenRefreshTokenIsExpired;
                                 if (!hasValue(whenRefreshTokenIsExpired)) {
                                     const configs = getConfigs();
                                     whenRefreshTokenIsExpired = configs.whenRefreshTokenIsExpired;
