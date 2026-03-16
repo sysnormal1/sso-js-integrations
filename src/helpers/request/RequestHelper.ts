@@ -1,5 +1,6 @@
 import { DefaultDataSwap, hasValue, largeJsonParse } from "@aalencarv/common-utils";
 import { AuthorizationParams, checkTokenIsExpired, refreshToken } from "../auth/AuthenticationHelper.js";
+import { getConfigs } from "../../Config.js";
 
 
 /**
@@ -93,45 +94,24 @@ export type FetchParams = {
  * @returns Parsed response data.
  */
 export async function defaultAuthenticatedFetch(params: FetchParams): Promise<any> {
-
 	let result = null;
-
 	try {
-
 		params = params || {};
-
 		params.reqParams = params.reqParams || {};
-
 		params.reqParams.method = params.reqParams.method || 'GET';
-
 		params.reqParams.headers = params.reqParams.headers || {};
-
-		params.reqParams.headers.Accept =
-            params.reqParams.headers.Accept || 'application/json';
-
-		params.reqParams.headers['Content-Type'] =
-            params.reqParams.headers['Content-Type'] || 'application/json';
-
-		params.reqParams.headers.Authorization =
-            params.reqParams.headers.Authorization;
+		params.reqParams.headers.Accept = params.reqParams.headers.Accept || 'application/json';
+		params.reqParams.headers['Content-Type'] = params.reqParams.headers['Content-Type'] || 'application/json';
+		params.reqParams.headers.Authorization = params.reqParams.headers.Authorization;
 
 		/**
 		 * Automatically attach bearer token if not provided.
 		 */
 		if (!hasValue(params.reqParams.headers.Authorization)) {
-
-			if (
-                typeof params.authContextGetter === "function" &&
-                hasValue(params.authContextGetter().token)
-            ) {
-
-				params.reqParams.headers.Authorization =
-                    `Bearer ${params.authContextGetter().token}`;
-
+			if (typeof params.authContextGetter === "function" && hasValue(params.authContextGetter().token)) {
+				params.reqParams.headers.Authorization = `Bearer ${params.authContextGetter().token}`;
 			} else {
-
 				params.reqParams.headers.Authorization = undefined;
-
 				delete params.reqParams.headers.Authorization;
 			}
 		}
@@ -142,75 +122,44 @@ export async function defaultAuthenticatedFetch(params: FetchParams): Promise<an
 		if (params.reqParams.body && typeof params.reqParams.body != 'string') {
 			params.reqParams.body = JSON.stringify(params.reqParams.body);
 		}
-
 		console.debug('requesting',params.url, 'with params',params.reqParams);
-
 		params.reqResponse = await fetch(params.url,params.reqParams);
-
 
 		/**
 		 * Handle large streaming JSON responses.
 		 */
-		if (
-            typeof params.reqResponse.body?.getReader == 'function' &&
-            params.useLargeJsonParser === true
-        ) {
-
+		if (typeof params.reqResponse.body?.getReader == 'function' && params.useLargeJsonParser === true) {
 			const reader = params.reqResponse.body.getReader();
-
 			const decoder = new TextDecoder();
-
 			let stringBuffer = [];
-
 			while (true) {
-
 				const { done, value } = await reader.read();
-
 				if (done) break;
-
-				stringBuffer.push(
-                    decoder.decode(value, { stream: true })
-                );
+				stringBuffer.push(decoder.decode(value, { stream: true }));
 			}
 
-			const totalCharacters =
-                stringBuffer.reduce((acc, str) => acc + str.length, 0);
-
+			const totalCharacters = stringBuffer.reduce((acc, str) => acc + str.length, 0);
 			if (totalCharacters >= 150000) {
-
 				params.responseJson = largeJsonParse(stringBuffer);
-
 			} else {
-
-				params.responseJson =
-                    JSON.parse(stringBuffer.join(''));
+				params.responseJson = JSON.parse(stringBuffer.join(''));
 			}
-
 		} else {
-
-			params.responseJson =
-                await params.reqResponse.json();
+			params.responseJson = await params.reqResponse.json();
 		}
 
 		if (typeof params.checkAndHandleExpiredToken === "function") {
-
-			result =
-                await params.checkAndHandleExpiredToken(params);
-
+			result = await params.checkAndHandleExpiredToken(params);
 		} else {
-
 			result = params.responseJson;
 		}
-
 	} catch (e: any) {
-
 		result = {
             success:false,
             message:e.message || e,
             exception: e
         };
 	}
-
 	return result;
 }
 
@@ -235,9 +184,7 @@ export async function defaultAuthenticatedFetch(params: FetchParams): Promise<an
  * @returns A {@link DefaultDataSwap} response object.
  */
 export async function secureFetch(params: FetchParams) : Promise<DefaultDataSwap>{
-
     let result: DefaultDataSwap = new DefaultDataSwap();
-
     try {
 
         /**
@@ -245,77 +192,55 @@ export async function secureFetch(params: FetchParams) : Promise<DefaultDataSwap
          */
         if (!hasValue(params.checkAndHandleExpiredToken)) {
 
-            params.checkAndHandleExpiredToken =
-            async(checkParams: FetchParams)=>{
-
+            params.checkAndHandleExpiredToken = async(checkParams: FetchParams)=>{
                 console.debug("starting check");
-
-                let result: DefaultDataSwap =
-                    checkParams.responseJson;
+                let result: DefaultDataSwap = checkParams.responseJson;
 
                 if (checkTokenIsExpired(checkParams.responseJson)) {
-
                     console.debug("token is expired, refreshing...");
-
-                    checkParams.responseJson.message =
-                        'expired session';
+                    checkParams.responseJson.message = 'expired session';
 
                     if (typeof checkParams.authContextGetter === "function") {
 
                         result = await refreshToken({
-
                             url: checkParams.authContextGetter().refreshTokenUrl,
-
-                            token:
-                                checkParams.authContextGetter().token || '',
-
-                            refreshToken:
-                                checkParams.authContextGetter().refreshToken || ''
+                            token: checkParams.authContextGetter().token || '',
+                            refreshToken: checkParams.authContextGetter().refreshToken || ''
                         });
 
                         if (result?.success) {
-
                             console.debug("refreshed token");
-
-                            if (
-                                typeof checkParams.authContextGetter().changedAuthorization === "function"
-                            ) {
-
+                            if (typeof checkParams.authContextGetter().changedAuthorization === "function") {
                                 (checkParams.authContextGetter().changedAuthorization as any)({
-
                                     token: result.data.token,
-
                                     refreshToken: result.data.refreshToken,
                                 });
                             }
-
-                            checkParams.reqParams =
-                                checkParams.reqParams || {};
-
-                            checkParams.reqParams.headers =
-                                checkParams.reqParams.headers || {};
-
-                            checkParams.reqParams.headers.Authorization =
-                                `Bearer ${result.data.token}`;
-
+                            checkParams.reqParams = checkParams.reqParams || {};
+                            checkParams.reqParams.headers = checkParams.reqParams.headers || {};
+                            checkParams.reqParams.headers.Authorization = `Bearer ${result.data.token}`;
                             console.debug("recursing secureFetch...");
-
-                            result =
-                                await secureFetch(checkParams);
+                            result = await secureFetch(checkParams);
+                        } else {
+                            if (checkTokenIsExpired(result)) {
+                                console.debug("refresh token is expired");                                
+                                let whenRefreshTokenIsExpired = checkParams.authContextGetter().whenRefreshTokenIsExpired;
+                                if (!hasValue(whenRefreshTokenIsExpired)) {
+                                    const configs = getConfigs();
+                                    whenRefreshTokenIsExpired = configs.whenRefreshTokenIsExpired;
+                                }                                
+                                if (whenRefreshTokenIsExpired) {
+                                    await whenRefreshTokenIsExpired(checkParams, result);
+                                }
+                            }
                         }
                     }
                 }
-
                 return result;
             }
         }
-
         result = await defaultAuthenticatedFetch(params);
-
     } catch (e: any) {
-
-        console.error(e);
-
         result.setException(e);
     }
 
@@ -331,49 +256,30 @@ export async function secureFetch(params: FetchParams) : Promise<DefaultDataSwap
  * and returns the result wrapped in {@link DefaultDataSwap}.
  */
 export async function getData(params: {
-
 	url: string;
-
 	queryParams?: any;
-
     authContextGetter?: ()=>AuthorizationParams;
-
 }): Promise<DefaultDataSwap> {
-
     let result: DefaultDataSwap = new DefaultDataSwap();
-
     try {
-
         const reqParams: any = {
-
             method: 'POST',
-
             headers: {
                 Accept: 'application/json',
                 'Content-Type': 'application/json'
             },
-
             body:{
                 queryParams: params.queryParams
             }
         }
-
         result = await secureFetch({
-
             url: params.url,
-
             reqParams: reqParams,
-
             authContextGetter: params.authContextGetter
         })
-
     } catch(e) {
-
-        console.error(e);
-
         result.setException(e);
     }
-
     return result;
 }
 
@@ -382,49 +288,28 @@ export async function getData(params: {
  * Performs a secure PUT request.
  */
 export async function putData(params: {
-
 	url: string;
-
 	data: number;
-
     authContextGetter?: ()=>AuthorizationParams;
-
 }): Promise<DefaultDataSwap> {
-
     let result: DefaultDataSwap = new DefaultDataSwap();
-
     try {
-
         const reqParams: any = {
-
             method: 'PUT',
-
             headers: {
-
                 Accept: 'application/json',
-
                 'Content-Type': 'application/json'
             },
-
             body: params.data
         }
-
         result = await secureFetch({
-
             url: params.url,
-
             reqParams: reqParams,
-
             authContextGetter: params.authContextGetter
         });
-
     } catch (e) {
-
-        console.error(e);
-
         result.setException(e);
     }
-
     return result;
 }
 
@@ -433,49 +318,28 @@ export async function putData(params: {
  * Performs a secure PATCH request.
  */
 export async function patchData(params: {
-
 	url: string;
-
 	data: number;
-
     authContextGetter?: ()=>AuthorizationParams;
-
 }): Promise<DefaultDataSwap> {
-
     let result: DefaultDataSwap = new DefaultDataSwap();
-
     try {
-
         const reqParams: any = {
-
             method: 'PATCH',
-
             headers: {
-
                 Accept: 'application/json',
-
                 'Content-Type': 'application/json'
             },
-
             body: params.data
         }
-
         result = await secureFetch({
-
             url: params.url,
-
             reqParams: reqParams,
-
             authContextGetter: params.authContextGetter
         })
-
     } catch (e) {
-
-        console.error(e);
-
         result.setException(e);
     }
-
     return result;
 }
 
@@ -492,66 +356,35 @@ export async function patchData(params: {
  * This pattern is commonly used for idempotent resource initialization.
  */
 export async function getOrCreate(params: {
-
 	url: string;
-
     endpoint: string;
-
 	getEndpoint?: string;
-
     putEndpoint?: string;
-
     data: any;
-
     queryParams?: any;
-
     where?: any;
-
     authContextGetter?: ()=>AuthorizationParams;
-
 }): Promise<DefaultDataSwap> {
-
     let result: DefaultDataSwap = new DefaultDataSwap();
-
     try {
-
         result = await getData({
-
-            url: `${params.url}${params.getEndpoint ||
-                `${params.endpoint}${params.endpoint.lastIndexOf('/get') === params.endpoint.length - 4 ? '' : '/get'}`
-            }`,
-
-            queryParams:
-                params.queryParams ||
-                hasValue(params.where)
+            url: `${params.url}${params.getEndpoint || `${params.endpoint}${params.endpoint.lastIndexOf('/get') === params.endpoint.length - 4 ? '' : '/get'}`}`,
+            queryParams: params.queryParams || hasValue(params.where)
                 ? {where: params.where}
                 : { where: params.data},
-
             authContextGetter: params.authContextGetter
         });
-
         if (result?.success && !hasValue(result?.data)) {
-
             result = await putData({
-
                 url: `${params.url}${params.putEndpoint || params.endpoint}`,
-
                 data: params.data,
-
                 authContextGetter: params.authContextGetter
             });
-
         } else if (!result?.success) {
-
             console.error(result);
         }
-
     } catch (e) {
-
-        console.error(e);
-
         result.setException(e);
     }
-
     return result;
 }

@@ -1,4 +1,5 @@
-import { hasValue } from "@aalencarv/common-utils";
+import { DefaultDataSwap, hasValue } from "@aalencarv/common-utils";
+import { FetchParams } from "./helpers/request/RequestHelper.js";
 
 /**
  * Configuration parameters used to initialize the SSO integration.
@@ -91,6 +92,15 @@ export type ConfigParams = {
      * instead of nested routes.
      */
     showResourceAsPopup?: boolean;
+
+    /**
+     * 
+     * callback called when refresh token is expired
+     * 
+     * @param lastFetchParams contains last requested fetch params that not refreshed token
+     * @param lastResult contains last result with expired refresh token
+     */
+    whenRefreshTokenIsExpired?: (lastFetchParams?: FetchParams, lastResult?: DefaultDataSwap) => void,
 };
 
 /**
