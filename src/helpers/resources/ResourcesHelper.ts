@@ -89,9 +89,10 @@ export async function getAgentAllowedResources(
         allowedAccess: 1
       }
     }
+    const authContextGetter = !isString ? params?.authContextGetter || getConfigs().authContextGetter : getConfigs().authContextGetter;
     body.token = !isString
-      ? (typeof params?.authContextGetter === "function"
-        ? params.authContextGetter().token || body.token
+      ? (typeof authContextGetter === "function"
+        ? authContextGetter().token || body.token
         : body.token)
       : body.token;
     result = await secureFetch({
@@ -100,7 +101,7 @@ export async function getAgentAllowedResources(
         method: "POST",
         body: body
       },
-      authContextGetter: !isString ? params?.authContextGetter : undefined
+      authContextGetter: authContextGetter
     });
     if (result?.success) {
       result.data = flatToNestedArray(result?.data || [], 'resourceId', 'resourceParentId');

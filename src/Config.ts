@@ -1,5 +1,6 @@
 import { DefaultDataSwap, hasValue } from "@aalencarv/common-utils";
 import { FetchParams } from "./helpers/request/RequestHelper.js";
+import { AuthorizationParams } from "./helpers/auth/AuthenticationHelper.js";
 
 /**
  * Configuration parameters used to initialize the SSO integration.
@@ -92,6 +93,16 @@ export type ConfigParams = {
      * instead of nested routes.
      */
     showResourceAsPopup?: boolean;
+
+
+    /**
+     * Function used to retrieve the current authorization context.
+     *
+     * @remarks
+     * Usually returns an object containing the current token
+     * and refresh token information.
+     */
+    authContextGetter?: ()=>AuthorizationParams;
 
     /**
      * 
