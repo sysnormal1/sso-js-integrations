@@ -73,20 +73,14 @@ export type GetAgentAllowedResourcesParams = {
 export async function getAgentAllowedResources(
   params?: GetAgentAllowedResourcesParams | string | undefined | null
 ): Promise<DefaultDataSwap<ResourcePermissionData[]>> {
-
   let result: DefaultDataSwap<ResourcePermissionData[]> = new DefaultDataSwap<ResourcePermissionData[]>();
-
   try {
-
     const isString = typeof params === 'string';
     const configs: ConfigParams = getConfigs();
-
-    const url =
-      getSsoUrl({
-        ...(isString ? {} : params || {}),
-        ssoEndpoint: configs.ssoGetAllowedsResourcesEndpoint
-      }) || '';
-
+    const url = getSsoUrl({
+      ...(isString ? {} : params || {}),
+      ssoEndpoint: configs.ssoGetAllowedsResourcesEndpoint
+    }) || '';
     const body: any = {
       queryParams: {
         systemId: !isString
@@ -95,13 +89,11 @@ export async function getAgentAllowedResources(
         allowedAccess: 1
       }
     }
-
     body.token = !isString
       ? (typeof params?.authContextGetter === "function"
         ? params.authContextGetter().token || body.token
         : body.token)
       : body.token;
-
     result = await secureFetch({
       url: url,
       reqParams: {
@@ -110,15 +102,12 @@ export async function getAgentAllowedResources(
       },
       authContextGetter: !isString ? params?.authContextGetter : undefined
     });
-
     if (result?.success) {
       result.data = flatToNestedArray(result?.data || [], 'resourceId', 'resourceParentId');
     }
-
   } catch (e) {
     result.setException(e);
   }
-
   return result;
 };
 
@@ -196,16 +185,11 @@ export type GetResourcePermissionParams = {
 export async function getResourcePermission(
   params: GetResourcePermissionParams
 ): Promise<DefaultDataSwap<ResourcePermissionData[]>> {
-
   let result: DefaultDataSwap<ResourcePermissionData[]> = new DefaultDataSwap<ResourcePermissionData[]>();
-
   try {
-
     const configs: ConfigParams = getConfigs();
     const url = getSsoUrl(configs.ssoGetResourcePermissionsEndpoint) || '';
-
     const queryParams: any = {};
-
     if (hasValue(firstValid([params.systemId, configs.ssoThisSystemId])))
       queryParams.systemId = firstValid([params.systemId, configs.ssoThisSystemId]);
 
