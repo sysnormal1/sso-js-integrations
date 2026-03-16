@@ -316,7 +316,7 @@ Used for:
 
 Internal utilities and integration tools for Sysnormal platform services.
 GitHub\
-https://github.com/sysnormal
+https://github.com/sysnormal1
 
 ---
 
