@@ -1,5 +1,23 @@
 import { DefaultDataSwap, hasValue, largeJsonParse } from "@aalencarv/common-utils";
 import { checkTokenIsExpired, refreshToken } from "../auth/AuthenticationHelper.js";
+import { getConfigs } from "../../Config.js";
+/**
+ * Performs an authenticated HTTP request using the native `fetch` API.
+ *
+ * @remarks
+ * This function automatically:
+ *
+ * - attaches the `Authorization` header if available
+ * - ensures request headers are properly configured
+ * - optionally parses large JSON responses using streaming
+ *
+ * If `checkAndHandleExpiredToken` is provided, the parsed
+ * response will be passed to that handler before returning.
+ *
+ * @param params Request parameters.
+ *
+ * @returns Parsed response data.
+ */
 export async function defaultAuthenticatedFetch(params) {
     let result = null;
     try {
@@ -10,34 +28,42 @@ export async function defaultAuthenticatedFetch(params) {
         params.reqParams.headers.Accept = params.reqParams.headers.Accept || 'application/json';
         params.reqParams.headers['Content-Type'] = params.reqParams.headers['Content-Type'] || 'application/json';
         params.reqParams.headers.Authorization = params.reqParams.headers.Authorization;
+        /**
+         * Automatically attach bearer token if not provided.
+         */
         if (!hasValue(params.reqParams.headers.Authorization)) {
-            if (typeof params.authContextGetter === "function" && hasValue(params.authContextGetter().token)) {
-                params.reqParams.headers.Authorization = `Bearer ${params.authContextGetter().token}`;
+            const authContextGetter = params.authContextGetter || getConfigs().authContextGetter;
+            if (typeof authContextGetter === "function" && hasValue(authContextGetter().token)) {
+                params.reqParams.headers.Authorization = `Bearer ${authContextGetter().token}`;
             }
             else {
                 params.reqParams.headers.Authorization = undefined;
                 delete params.reqParams.headers.Authorization;
             }
         }
+        /**
+         * Automatically stringify request body if needed.
+         */
         if (params.reqParams.body && typeof params.reqParams.body != 'string') {
             params.reqParams.body = JSON.stringify(params.reqParams.body);
         }
         console.debug('requesting', params.url, 'with params', params.reqParams);
         params.reqResponse = await fetch(params.url, params.reqParams);
-        // Obter o reader para ler a resposta em partes
+        /**
+         * Handle large streaming JSON responses.
+         */
         if (typeof params.reqResponse.body?.getReader == 'function' && params.useLargeJsonParser === true) {
             const reader = params.reqResponse.body.getReader();
-            const decoder = new TextDecoder(); // Decodificador para transformar bytes em texto
+            const decoder = new TextDecoder();
             let stringBuffer = [];
             while (true) {
                 const { done, value } = await reader.read();
                 if (done)
-                    break; // Se não houver mais dados, sair do loop
-                // Converte os bytes recebidos para texto
+                    break;
                 stringBuffer.push(decoder.decode(value, { stream: true }));
             }
             const totalCharacters = stringBuffer.reduce((acc, str) => acc + str.length, 0);
-            if (totalCharacters >= 150000) { //~250MB  
+            if (totalCharacters >= 150000) {
                 params.responseJson = largeJsonParse(stringBuffer);
             }
             else {
@@ -55,15 +81,39 @@ export async function defaultAuthenticatedFetch(params) {
         }
     }
     catch (e) {
-        result = { success: false, message: e.message || e, exception: e };
+        result = {
+            success: false,
+            message: e.message || e,
+            exception: e
+        };
     }
     return result;
 }
+/**
+ * Performs a secure HTTP request with automatic token refresh handling.
+ *
+ * @remarks
+ * This function wraps {@link defaultAuthenticatedFetch} and adds
+ * automatic session recovery logic:
+ *
+ * 1. Execute request
+ * 2. Detect expired token
+ * 3. Request new token using {@link refreshToken}
+ * 4. Update authorization context
+ * 5. Retry the original request
+ *
+ * This process is performed transparently to the caller.
+ *
+ * @param params Request parameters.
+ *
+ * @returns A {@link DefaultDataSwap} response object.
+ */
 export async function secureFetch(params) {
-    //logi('secureFetch');
     let result = new DefaultDataSwap();
     try {
-        //params = (params || {}) as FetchParams;
+        /**
+         * Default expired-token handler.
+         */
         if (!hasValue(params.checkAndHandleExpiredToken)) {
             params.checkAndHandleExpiredToken = async (checkParams) => {
                 console.debug("starting check");
@@ -71,16 +121,17 @@ export async function secureFetch(params) {
                 if (checkTokenIsExpired(checkParams.responseJson)) {
                     console.debug("token is expired, refreshing...");
                     checkParams.responseJson.message = 'expired session';
-                    if (typeof checkParams.authContextGetter === "function") {
+                    const authContextGetter = checkParams.authContextGetter || getConfigs().authContextGetter;
+                    if (typeof authContextGetter === "function") {
                         result = await refreshToken({
-                            url: checkParams.authContextGetter().refreshTokenUrl,
-                            token: checkParams.authContextGetter().token || '',
-                            refreshToken: checkParams.authContextGetter().refreshToken || ''
+                            url: authContextGetter().refreshTokenUrl,
+                            token: authContextGetter().token || '',
+                            refreshToken: authContextGetter().refreshToken || ''
                         });
                         if (result?.success) {
                             console.debug("refreshed token");
-                            if (typeof checkParams.authContextGetter().changedAuthorization === "function") {
-                                checkParams.authContextGetter().changedAuthorization({
+                            if (typeof authContextGetter().changedAuthorization === "function") {
+                                authContextGetter().changedAuthorization({
                                     token: result.data.token,
                                     refreshToken: result.data.refreshToken,
                                 });
@@ -91,6 +142,19 @@ export async function secureFetch(params) {
                             console.debug("recursing secureFetch...");
                             result = await secureFetch(checkParams);
                         }
+                        else {
+                            if (checkTokenIsExpired(result)) {
+                                console.debug("refresh token is expired");
+                                let whenRefreshTokenIsExpired = authContextGetter().whenRefreshTokenIsExpired;
+                                if (!hasValue(whenRefreshTokenIsExpired)) {
+                                    const configs = getConfigs();
+                                    whenRefreshTokenIsExpired = configs.whenRefreshTokenIsExpired;
+                                }
+                                if (whenRefreshTokenIsExpired) {
+                                    await whenRefreshTokenIsExpired(checkParams, result);
+                                }
+                            }
+                        }
                     }
                 }
                 return result;
@@ -99,14 +163,18 @@ export async function secureFetch(params) {
         result = await defaultAuthenticatedFetch(params);
     }
     catch (e) {
-        console.error(e);
         result.setException(e);
     }
-    //logf('secureFetch');
     return result;
 }
+/**
+ * Performs a secure data retrieval request.
+ *
+ * @remarks
+ * Sends a POST request containing `queryParams`
+ * and returns the result wrapped in {@link DefaultDataSwap}.
+ */
 export async function getData(params) {
-    //logi('getData');
     let result = new DefaultDataSwap();
     try {
         const reqParams = {
@@ -126,14 +194,14 @@ export async function getData(params) {
         });
     }
     catch (e) {
-        console.error(e);
         result.setException(e);
     }
-    //logf('getData');
     return result;
 }
+/**
+ * Performs a secure PUT request.
+ */
 export async function putData(params) {
-    //logi('putData');
     let result = new DefaultDataSwap();
     try {
         const reqParams = {
@@ -151,14 +219,14 @@ export async function putData(params) {
         });
     }
     catch (e) {
-        console.error(e);
         result.setException(e);
     }
-    //logf('putData');
     return result;
 }
+/**
+ * Performs a secure PATCH request.
+ */
 export async function patchData(params) {
-    //logi('patchData');
     let result = new DefaultDataSwap();
     try {
         const reqParams = {
@@ -176,18 +244,29 @@ export async function patchData(params) {
         });
     }
     catch (e) {
-        console.error(e);
         result.setException(e);
     }
-    //logf('patchData');
     return result;
 }
+/**
+ * Retrieves a resource or creates it if it does not exist.
+ *
+ * @remarks
+ * This helper performs the following workflow:
+ *
+ * 1. Attempt to retrieve the resource using `getData`
+ * 2. If the resource does not exist, create it using `putData`
+ *
+ * This pattern is commonly used for idempotent resource initialization.
+ */
 export async function getOrCreate(params) {
     let result = new DefaultDataSwap();
     try {
         result = await getData({
             url: `${params.url}${params.getEndpoint || `${params.endpoint}${params.endpoint.lastIndexOf('/get') === params.endpoint.length - 4 ? '' : '/get'}`}`,
-            queryParams: params.queryParams || hasValue(params.where) ? { where: params.where } : { where: params.data },
+            queryParams: params.queryParams || hasValue(params.where)
+                ? { where: params.where }
+                : { where: params.data },
             authContextGetter: params.authContextGetter
         });
         if (result?.success && !hasValue(result?.data)) {
@@ -202,7 +281,6 @@ export async function getOrCreate(params) {
         }
     }
     catch (e) {
-        console.error(e);
         result.setException(e);
     }
     return result;
