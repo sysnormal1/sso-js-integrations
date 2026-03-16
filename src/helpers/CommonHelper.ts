@@ -122,34 +122,24 @@ export type GetSsoUrlParams = {
 export function getSsoUrl(
     params?: GetSsoUrlParams | string | null | undefined
 ): string | null {
-
     let result: string | null = null;
     const isString = typeof params === "string";
-
     if (!isString && hasValue(params?.ssoUrl)) {
-
         result = params.ssoUrl;
-
         if (hasValue(params?.ssoEndpoint)) {
-
             if ((result || '').indexOf(params.ssoEndpoint) <= -1) {
-
                 if ((result || '').replace("//", "").indexOf('/') <= -1) {
                     result += params.ssoEndpoint;
                 }
             }
         }
-
     } else {
-
         result = getConfigs().ssoUrl || '';
-
         if (!isString && hasValue(params?.ssoEndpoint)) {
             result += params.ssoEndpoint;
         } else if (isString && hasValue(params)) {
             result += params;
         }
     }
-
     return result;
 }

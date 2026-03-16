@@ -116,6 +116,7 @@ config({
 |`ssoThisSystemId`	|Identifier of the current system in the SSO environment.|
 |`ssoResourcetypeScreenId`	|Identifier representing a screen resource type.|
 |`showResourceAsPopup`	|Determines whether resources should be rendered as popup routes instead of nested routes.|
+|`whenRefreshTokenIsExpired`|Callback to handle action whe refresh token also is expired, commonly redirect to your login page|
 
 ---
 

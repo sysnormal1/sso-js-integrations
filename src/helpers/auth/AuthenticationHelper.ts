@@ -134,22 +134,15 @@ export type SsoAuthParams = {
  * @see {@link refreshToken}
  */
 export async function authOnSso(params: SsoAuthParams): Promise<DefaultDataSwap> {
-
     let result = new DefaultDataSwap();
-
     try {
-
         const configs: ConfigParams = getConfigs();
-
-        const url =
-            getSsoUrl({
-                ...params,
-                ssoUrl: params.url || configs.ssoUrl,
-                ssoEndpoint: params.endpoint || configs.ssoAuthEndpoint
-            });
-
+        const url = getSsoUrl({
+            ...params,
+            ssoUrl: params.url || configs.ssoUrl,
+            ssoEndpoint: params.endpoint || configs.ssoAuthEndpoint
+        });
         console.debug('requesting auth sso', url);
-
         let response = await fetch(url || '', {
             method: "POST",
             headers: {
@@ -162,14 +155,10 @@ export async function authOnSso(params: SsoAuthParams): Promise<DefaultDataSwap>
                 password: params.password
             })
         });
-
         result = await response.json();
-
     } catch (e) {
-
         result.setException(e);
     }
-
     return result;
 }
 
@@ -204,46 +193,30 @@ export async function refreshToken(params: {
     token: string,
     refreshToken: string
 }) : Promise<DefaultDataSwap> {
-
     let result: DefaultDataSwap = new DefaultDataSwap();
-
     try {
-
         const configs: ConfigParams = getConfigs();
-
-        const url =
-            getSsoUrl({
-                ...params,
-                ssoUrl: params.url || configs.ssoUrl,
-                ssoEndpoint: params.endpoint || configs.ssoRefreshTokenEndpoint
-            });
-
+        const url = getSsoUrl({
+            ...params,
+            ssoUrl: params.url || configs.ssoUrl,
+            ssoEndpoint: params.endpoint || configs.ssoRefreshTokenEndpoint
+        });
         console.debug("refreshing token", url, params);
-
         let resultRequest = await fetch(url || '', {
-
             method: "POST",
-
             headers:{
                 Accept: "application/json",
                 "Content-Type": "application/json",
                 'Authorization': `Bearer ${params.token}`
             },
-
             body: JSON.stringify({
                 refreshToken: params.refreshToken
             })
         });
-
         result = await resultRequest.json();
-
     } catch (e) {
-
-        console.error(e);
-
         result.setException(e);
     }
-
     return result;
 }
 
@@ -274,28 +247,18 @@ export async function refreshToken(params: {
  * ```
  */
 export function checkTokenIsExpired(resultJson?: any) : boolean {
-
     let result = false;
-
     try {
-
         if (!resultJson?.success) {
-
-            let message =
-                resultJson.message || resultJson.toString();
-
-            if (
-                (message || '').trim().toLowerCase().indexOf("expired") > -1 ||
-                (message || '').trim().toLowerCase().indexOf("invalid signature") > -1
+            let message = resultJson.message || resultJson.toString();
+            if ((message || '').trim().toLowerCase().indexOf("expired") > -1 
+                || (message || '').trim().toLowerCase().indexOf("invalid signature") > -1
             )
                 result = true;
         }
-
     } catch (e) {
-
         console.error(e);
     }
-
     return result;
 }
 
