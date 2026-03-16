@@ -68,6 +68,57 @@ Features:
 
 ---
 
+# ⚙️ Library Configuration
+
+The library provides a global configuration mechanism that allows applications to define how the SSO endpoints and environment should behave.
+
+Configuration is performed using the config() function and should typically be called once during application startup.
+
+Internally, the configuration values are stored in a frozen object to avoid accidental mutations during runtime.
+
+config(params: ConfigParams)
+
+Initializes or updates the internal configuration used by the library.
+
+The provided parameters are merged with the default configuration.
+If a ssoPort is provided and ssoUrl is not explicitly set, the port will be automatically appended to the resolved SSO URL.
+```ts
+import { config } from "@sysnormal/sso-js-integrations";
+
+config({
+  ssoUrl: "https://sso.company.com",
+  ssoThisSystemId: 5,
+  showResourceAsPopup: true
+});
+
+```
+## Available Configuration Parameters
+
+
+| Parameter    | Description                   |
+|---|---|
+|`ssoProtocol`|Protocol used to build the SSO URL (http or https). Ex.: `http`|
+|`ssoAddress`	|Hostname or IP address of the SSO server. Ex.: `localhost`|
+|`ssoPort`	|Port used by the SSO service. Ex.: `3001`|
+|`ssoUrl`	|Fully qualified base URL of the SSO server. Overrides protocol, address and port if provided. Ex.: `http://localhost:3001`|
+|`ssoRegisterEndpoint`	|Endpoint used for user registration. Ex.: `/auth/register`|
+|`ssoLoginEndpoint`	|Endpoint used for user login.|
+|`ssoAuthEndpoint`	|Endpoint used to authenticate users.|
+|`ssoRefreshTokenEndpoint`	|Endpoint used to refresh expired tokens.|
+|`ssoRecordsEndpoint`	|Base endpoint for accessing SSO records.|
+|`ssoSystemsEndpoint`	|Endpoint used to retrieve registered systems.|
+|`ssoAccessProfilesEndpoint`	|Endpoint used to retrieve access profiles.|
+|`ssoAgentsXAccessProfilesXSystemsEndpoint`	|Endpoint used to manage agent/access/system relationships.|
+|`ssoResourcesEndpoint`	|Endpoint used to retrieve resources.|
+|`ssoResourcePermissionsEndpoint`	|Endpoint used to retrieve resource permissions.|
+|`ssoGetAllowedsResourcesEndpoint`	|Endpoint used to retrieve allowed resources for the current agent.|
+|`ssoGetResourcePermissionsEndpoint`	|Endpoint used to retrieve permissions for a specific resource.|
+|`ssoThisSystemId`	|Identifier of the current system in the SSO environment.|
+|`ssoResourcetypeScreenId`	|Identifier representing a screen resource type.|
+|`showResourceAsPopup`	|Determines whether resources should be rendered as popup routes instead of nested routes.|
+
+---
+
 # Authentication
 
 ## authOnSso()
