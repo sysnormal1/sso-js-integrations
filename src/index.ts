@@ -2,6 +2,7 @@ import { DefaultDataSwap, hasValue, typeOf } from '@aalencarv/common-utils';
 import { authOnSso, AuthorizationParams } from './helpers/auth/AuthenticationHelper.js';
 import { ConfigParams, getConfigs } from './Config.js';
 import { getData, getOrCreate, patchData, putData } from './helpers/request/RequestHelper.js';
+import validator from 'validator';
 
 
 //reexports to public
@@ -167,7 +168,7 @@ async function upsertResourcesAndPermissions(params: {
             let resource = {
                 ...params.resources, 
                 systemId: params.system.id, 
-                resourceTypeId: params.resources.resourceTypeId || params.defaultResourceTypeId,// || 10, //ResourceType.URL_ID
+                resourceTypeId: params.resources.resourceTypeId || params.defaultResourceTypeId || 9, //sso ResourceType.ENDPOINT_ID
                 parentId: null
             };
 
@@ -376,25 +377,21 @@ async function upsertResourcesAndPermissions(params: {
  * @see getOrCreate
  */
 export async function ssoRegister(params: {
-
 	ssoAgent: {
-		identifierTypeId: number;
+		identifierTypeId?: number;
 		identifier: string | number;
 		password: string | number;
 	};
-
 	ssoSystem: {
-		systemPlatformId: number;
-		systemSideId: number;
+		systemPlatformId?: number;
+        systemPlatform?: string;
+		systemSideId?: number;
+        systemSide?: string;
 		name: string;
 	};
-
     defaultResourceTypeId?: number;
-
 	resources?: any,
-
     systemPermissionsIsOnlySystemAgent?: boolean;
-
 }): Promise<void> {    
 
     try {        
@@ -403,65 +400,76 @@ export async function ssoRegister(params: {
 
         const configs: ConfigParams = getConfigs();
 
+        if (!hasValue(params.ssoAgent.identifierTypeId)) {
+            params.ssoAgent.identifierTypeId = 1; //sso IdentifierTypes.IDENTIFIER_ID
+            if (validator.isEmail(params.ssoAgent.identifier.toString())) {
+                params.ssoAgent.identifierTypeId = 6; //sso IdentifierTypes.EMAIL_ID
+            }
+        }
+
         let agentResponseJson: DefaultDataSwap = await authOnSso({
-
 			url: `${configs.ssoUrl}${configs.ssoLoginEndpoint}`,
-
 			identifierTypeId: params.ssoAgent.identifierTypeId,
-
 			identifier: params.ssoAgent.identifier,
-
 			password: params.ssoAgent.password
-
 		}); 
 
         // If agent does not exist, automatically register it
         if (!agentResponseJson.success && (agentResponseJson.message || '').indexOf("not found") > -1) {
-
             agentResponseJson = await authOnSso({
-
 				url: `${configs.ssoUrl}${configs.ssoRegisterEndpoint}`,
-
 				identifierTypeId: params.ssoAgent.identifierTypeId,
-
 				identifier: params.ssoAgent.identifier,
-
 				password: params.ssoAgent.password
 			});
         }
 
         if (agentResponseJson.success) {
-
             const agent = agentResponseJson.data.agent;
 
             // Store tokens globally for authenticated requests
             LAST_TOKEN = agentResponseJson.data.token;
-
             LAST_REFRESH_TOKEN = agentResponseJson.data.refreshToken;
 
             // Step 2: register or retrieve the system
+            if (!hasValue(params.ssoSystem.systemPlatformId)) {
+                params.ssoSystem.systemPlatformId = 1; //sso SystemPlatforms.DESKTP_ID
+                if (hasValue(params.ssoSystem.systemPlatform)) {
+                    if (params.ssoSystem.systemPlatform.toLowerCase().trim() === "web") {
+                        params.ssoSystem.systemPlatformId = 2; //sso SystemPlatforms.WEB_ID
+                    } else if (params.ssoSystem.systemPlatform.toLowerCase().trim() === "mobile"
+                        || params.ssoSystem.systemPlatform.toLowerCase().trim() === "mob"
+                    ) {
+                        params.ssoSystem.systemPlatformId = 3; //sso SystemPlatforms.MOBILE_ID
+                    }
+                }
+            }
+            if (!hasValue(params.ssoSystem.systemSideId)) {
+                params.ssoSystem.systemSideId = 1; //sso SystemSides.SERVER_ID                
+                if (hasValue(params.ssoSystem.systemSide)) {
+                    if (params.ssoSystem.systemSide.toLowerCase().trim() === "client"
+                        || params.ssoSystem.systemSide.toLowerCase().trim() === "front"
+                    ) {
+                        params.ssoSystem.systemSideId = 2; //sso SystemSides.CLIENT_ID
+                    }
+                } else if (params.ssoSystem.systemPlatformId == 2 || params.ssoSystem.systemPlatformId == 3) {
+                    params.ssoSystem.systemSideId = 2; //sso SystemSides.CLIENT_ID
+                }
+            }
             let system: any = {
-
                 systemPlatformId: params.ssoSystem.systemPlatformId,
-
                 systemSideId: params.ssoSystem.systemSideId,
-
                 name: params.ssoSystem.name
             };
 
             let systemResponseJson: DefaultDataSwap = await getOrCreate({
-
 				url: configs.ssoUrl || '',
-
                 endpoint: configs.ssoSystemsEndpoint || '',
-
                 data: system,
-
 				authContextGetter: getDefaultAuthorizationParams
             })
 
             if (systemResponseJson.success && hasValue(systemResponseJson.data)) {
-
                 system = systemResponseJson.data[0] || systemResponseJson.data;
 
                 // Step 3: ensure access profile exists
@@ -470,90 +478,61 @@ export async function ssoRegister(params: {
                 };
 
                 let accessProfileResponseJson: DefaultDataSwap = await getOrCreate({
-
 					url: configs.ssoUrl || '',
-
                     endpoint: configs.ssoAccessProfilesEndpoint || '',
-
                     data: accessProfile,
-
 					authContextGetter: getDefaultAuthorizationParams
                 });
 
                 if (accessProfileResponseJson.success) {
-
                     accessProfile = accessProfileResponseJson.data[0] || accessProfileResponseJson.data;
 
                     // Step 4: link agent, access profile and system
                     let agentXAccessProfileXSystem: any = {
-
                         agentId: agent.id,
-
                         accessProfileId: accessProfile.id,
-
                         systemId: system.id
                     };
 
                     let agentXAccessProfileXSystemResponseJson: DefaultDataSwap = await getOrCreate({
-
 						url: configs.ssoUrl || '',
-
                         endpoint: configs.ssoAgentsXAccessProfilesXSystemsEndpoint || '',
-
                         data: agentXAccessProfileXSystem,
-
 						authContextGetter: getDefaultAuthorizationParams
                     });
 
                     if (agentXAccessProfileXSystemResponseJson.success) {
-
                         agentXAccessProfileXSystem = agentXAccessProfileXSystemResponseJson.data[0] || agentXAccessProfileXSystemResponseJson.data;
 
                         // Step 5: insert or update resources and permissions
                         const resourcesResult = await upsertResourcesAndPermissions({
-
                             system,
-
                             accessProfile,
-
                             agent,
-
                             defaultResourceTypeId: params.defaultResourceTypeId,                            
-
                             resources: params.resources,
-
                             systemPermissionsIsOnlySystemAgent: params.systemPermissionsIsOnlySystemAgent
 						});
 
                         if (!resourcesResult.success) {
-
                             console.error(resourcesResult);
                         }
 
                         //@todo - 2026-03-16 - continuar aqui, inserir o configuration do Home, contendo o dropdow do mes inserido no customizedreport e carregalo no home para ver como fica e tratar o setamento do estado dele para o estado global da pagina para poder ser acessado por outros componentes
 
                     } else {
-
                         console.error(agentXAccessProfileXSystemResponseJson);
                     }                                
-
                 } else {
-
                     console.error(accessProfileResponseJson);
                 }                
-
             } else {
-
                 console.error(systemResponseJson);
             }
-
         } else {
-
             console.error(agentResponseJson);
         }
-
     } catch (e) {
-
         console.error(e);
     } 
 }

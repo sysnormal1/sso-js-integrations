@@ -1,8 +1,8 @@
 
-# Sysnormal SSO JS Integrations
+# Sysnormal SSO JS Integration
 
-[![npm version](https://img.shields.io/npm/v/@sysnormal/sso-js-integrations.svg)](https://www.npmjs.com/package/@sysnormal/sso-js-integrations)
-[![npm downloads](https://img.shields.io/npm/dm/@sysnormal/sso-js-integrations.svg)](https://www.npmjs.com/package/@sysnormal/sso-js-integrations)
+[![npm version](https://img.shields.io/npm/v/@sysnormal/sso-js-integration.svg)](https://www.npmjs.com/package/@sysnormal/sso-js-integration)
+[![npm downloads](https://img.shields.io/npm/dm/@sysnormal/sso-js-integration.svg)](https://www.npmjs.com/package/@sysnormal/sso-js-integration)
 ![TypeScript](https://badgen.net/badge/Built%20with/TypeScript/blue)
 ![License](https://img.shields.io/badge/license-ISC-blue.svg)
 
@@ -30,7 +30,7 @@ The library works in:
 # Installation
 
 ```bash
-npm install @sysnormal/sso-js-integrations
+npm install @sysnormal/sso-js-integration
 ```
 
 Peer dependency:
@@ -83,7 +83,7 @@ Initializes or updates the internal configuration used by the library.
 The provided parameters are merged with the default configuration.
 If a ssoPort is provided and ssoUrl is not explicitly set, the port will be automatically appended to the resolved SSO URL.
 ```ts
-import { config } from "@sysnormal/sso-js-integrations";
+import { config } from "@sysnormal/sso-js-integration";
 
 config({
   ssoUrl: "https://sso.company.com",
@@ -128,7 +128,7 @@ config({
 Authenticate a user or agent against the SSO server.
 
 ```ts
-import { authOnSso } from "@sysnormal/sso-js-integrations";
+import { authOnSso } from "@sysnormal/sso-js-integration";
 
 const result = await authOnSso({
   identifier: "user@email.com",
@@ -163,7 +163,7 @@ DefaultDataSwap
 Refresh an expired authentication token.
 
 ```ts
-import { refreshToken } from "@sysnormal/sso-js-integrations";
+import { refreshToken } from "@sysnormal/sso-js-integration";
 
 const result = await refreshToken({
   token: currentToken,

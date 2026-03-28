@@ -2,6 +2,7 @@ import { DefaultDataSwap, hasValue, typeOf } from '@aalencarv/common-utils';
 import { authOnSso } from './helpers/auth/AuthenticationHelper.js';
 import { getConfigs } from './Config.js';
 import { getData, getOrCreate, patchData, putData } from './helpers/request/RequestHelper.js';
+import validator from 'validator';
 //reexports to public
 export { config, getConfigs } from './Config.js';
 export { getSsoUrl } from './helpers/CommonHelper.js';
@@ -137,7 +138,7 @@ async function upsertResourcesAndPermissions(params) {
             let resource = {
                 ...params.resources,
                 systemId: params.system.id,
-                resourceTypeId: params.resources.resourceTypeId || params.defaultResourceTypeId, // || 10, //ResourceType.URL_ID
+                resourceTypeId: params.resources.resourceTypeId || params.defaultResourceTypeId || 9, //sso ResourceType.ENDPOINT_ID
                 parentId: null
             };
             // Remove children from persistence object
@@ -316,6 +317,12 @@ export async function ssoRegister(params) {
     try {
         // Step 1: login or register the system agent
         const configs = getConfigs();
+        if (!hasValue(params.ssoAgent.identifierTypeId)) {
+            params.ssoAgent.identifierTypeId = 1; //sso IdentifierTypes.IDENTIFIER_ID
+            if (validator.isEmail(params.ssoAgent.identifier.toString())) {
+                params.ssoAgent.identifierTypeId = 6; //sso IdentifierTypes.EMAIL_ID
+            }
+        }
         let agentResponseJson = await authOnSso({
             url: `${configs.ssoUrl}${configs.ssoLoginEndpoint}`,
             identifierTypeId: params.ssoAgent.identifierTypeId,
@@ -337,6 +344,30 @@ export async function ssoRegister(params) {
             LAST_TOKEN = agentResponseJson.data.token;
             LAST_REFRESH_TOKEN = agentResponseJson.data.refreshToken;
             // Step 2: register or retrieve the system
+            if (!hasValue(params.ssoSystem.systemPlatformId)) {
+                params.ssoSystem.systemPlatformId = 1; //sso SystemPlatforms.DESKTP_ID
+                if (hasValue(params.ssoSystem.systemPlatform)) {
+                    if (params.ssoSystem.systemPlatform.toLowerCase().trim() === "web") {
+                        params.ssoSystem.systemPlatformId = 2; //sso SystemPlatforms.WEB_ID
+                    }
+                    else if (params.ssoSystem.systemPlatform.toLowerCase().trim() === "mobile"
+                        || params.ssoSystem.systemPlatform.toLowerCase().trim() === "mob") {
+                        params.ssoSystem.systemPlatformId = 3; //sso SystemPlatforms.MOBILE_ID
+                    }
+                }
+            }
+            if (!hasValue(params.ssoSystem.systemSideId)) {
+                params.ssoSystem.systemSideId = 1; //sso SystemSides.SERVER_ID                
+                if (hasValue(params.ssoSystem.systemSide)) {
+                    if (params.ssoSystem.systemSide.toLowerCase().trim() === "client"
+                        || params.ssoSystem.systemSide.toLowerCase().trim() === "front") {
+                        params.ssoSystem.systemSideId = 2; //sso SystemSides.CLIENT_ID
+                    }
+                }
+                else if (params.ssoSystem.systemPlatformId == 2 || params.ssoSystem.systemPlatformId == 3) {
+                    params.ssoSystem.systemSideId = 2; //sso SystemSides.CLIENT_ID
+                }
+            }
             let system = {
                 systemPlatformId: params.ssoSystem.systemPlatformId,
                 systemSideId: params.ssoSystem.systemSideId,

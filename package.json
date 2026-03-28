@@ -1,11 +1,11 @@
 {
-  "name": "@sysnormal/sso-js-integrations",
-  "package": "@sysnormal/sso-js-integrations",
+  "name": "@sysnormal/sso-js-integration",
+  "package": "@sysnormal/sso-js-integration",
   "version": "1.5.0",
   "author": "aalencarvz@gmail.com",
   "license": "ISC",
   "type": "module",
-  "description": "a common sysnormal sso integrations functions to use in javascript and node",
+  "description": "a common sysnormal sso integration functions to use in javascript and node",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -21,6 +21,7 @@
   ],
   "devDependencies": {
     "@types/node": "^25.4.0",
+    "@types/validator": "^13.15.10",
     "cross-env": "^10.1.0",
     "debug": "^4.4.3",
     "typescript": "^5.8.3"
@@ -30,6 +31,7 @@
   },
   "dependencies": {
     "@aalencarv/common-utils": "^1.12.0",
-    "jwt-decode": "^4.0.0"
+    "jwt-decode": "^4.0.0",
+    "validator": "^13.15.26"
   }
 }
