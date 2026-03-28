@@ -84,13 +84,15 @@ export { FetchParams, secureFetch, defaultAuthenticatedFetch, getData, putData, 
  */
 export declare function ssoRegister(params: {
     ssoAgent: {
-        identifierTypeId: number;
+        identifierTypeId?: number;
         identifier: string | number;
         password: string | number;
     };
     ssoSystem: {
-        systemPlatformId: number;
-        systemSideId: number;
+        systemPlatformId?: number;
+        systemPlatform?: string;
+        systemSideId?: number;
+        systemSide?: string;
         name: string;
     };
     defaultResourceTypeId?: number;
