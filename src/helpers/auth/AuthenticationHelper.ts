@@ -18,15 +18,20 @@ import { FetchParams } from "../request/RequestHelper.js";
  */
 export type AuthorizationParams = {
 
+    logged?: boolean;
+    setLogged?: (newLogged?: boolean)=>void
+
     /**
      * Current access token used for authenticated requests.
      */
     token?: string;
+    setToken?: (newToken?: string)=>void
 
     /**
      * Refresh token used to obtain a new access token when the current one expires.
      */
     refreshToken?: string;
+    setRefreshToken?: (newRefreshToken?: string)=>void
 
     /**
      * Endpoint URL used to refresh the authentication tokens.
